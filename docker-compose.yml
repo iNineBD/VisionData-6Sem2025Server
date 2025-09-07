@@ -1,9 +1,9 @@
 services:
-  visiona-data-api:
+  vision-data-api:
     build:
       context: .
       dockerfile: dockerfile
-    container_name: visiona-data-api
+    container_name: vision-data-api
     ports:
       - "8080:8080"
       - "8443:8443"
@@ -14,18 +14,18 @@ services:
     volumes:
       - ./certs:/app/certs:ro
     networks:
-      - visiona-network
+      - vision-network
 
   redis:
     image: redis:7.4-alpine
-    container_name: visiona-data-redis
+    container_name: vision-data-redis
     ports:
       - "6379:6379"
     command: ["redis-server", "--appendonly", "no"]
     volumes:
       - redis_data:/data
     networks:
-      - visiona-network
+      - vision-network
     restart: unless-stopped
 
 volumes:
@@ -33,5 +33,5 @@ volumes:
     driver: local
 
 networks:
-  visiona-network:
+  vision-network:
     driver: bridge

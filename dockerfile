@@ -23,7 +23,7 @@ go mod verify
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
     -ldflags='-w -s -extldflags "-static"' \    
     -a -installsuffix cgo \
-    -o visiona-data ./cmd/api/main.go
+    -o vision-data ./cmd/api/main.go
 
 # Stage final - imagem mínima
 FROM scratch
@@ -39,7 +39,7 @@ COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
 COPY --from=builder /etc/passwd /etc/passwd
 
 # Copiar binário
-COPY --from=builder /app/visiona-data /visiona-data
+COPY --from=builder /app/vision-data /vision-data
 
 # Copiar .env para a imagem final
 COPY --from=builder /app/.env /app/.env
@@ -48,4 +48,4 @@ COPY --from=builder /app/.env /app/.env
 EXPOSE 8080
 
 # Comando de execução
-ENTRYPOINT ["/visiona-data"]
+ENTRYPOINT ["/vision-data"]

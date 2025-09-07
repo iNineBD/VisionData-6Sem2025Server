@@ -1,4 +1,4 @@
-# Visiona Data API
+# Vision Data API
 
 A REST API developed in Go using the Gin framework, integrated with Elasticsearch for logging, Redis for caching, and MongoDB for data persistence.
 
@@ -78,7 +78,7 @@ Clone the repository and run:
 docker-compose up -d
 
 # Check logs
-docker-compose logs -f visiona-data-api
+docker-compose logs -f vision-data-api
 
 # Stop services
 docker-compose down
@@ -97,7 +97,7 @@ docker-compose ps
 docker-compose logs -f
 
 # Access container shell
-docker-compose exec visiona-data-api sh
+docker-compose exec vision-data-api sh
 ```
 
 ## ⚙️ Configuration
@@ -163,7 +163,7 @@ Returns the application status and its dependencies.
 
 The Docker Compose setup includes:
 
-### visiona-data-api
+### vision-data-api
 
 - **Ports**: 8080 (HTTP), 8443 (HTTPS)
 - **Volumes**: SSL certificates mounted as read-only
@@ -200,7 +200,7 @@ The Docker Compose setup includes:
 
 ```bash
 # View application logs
-docker-compose logs visiona-data-api
+docker-compose logs vision-data-api
 
 # View Redis logs
 docker-compose logs redis

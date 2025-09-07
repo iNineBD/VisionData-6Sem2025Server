@@ -90,7 +90,7 @@ func (cfg *App) newClientES() error {
 	es, err := elsearch.NewClient(&elsearch.Config{
 		MaxRetries:         3,
 		RetryBackoff:       3,
-		Timeout:            15 * time.Second,
+		Timeout:            5 * time.Second,
 		EnableLogging:      true,
 		InsecureSkipVerify: false,
 	})
