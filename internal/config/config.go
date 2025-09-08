@@ -41,8 +41,8 @@ func NewConfig() (*App, error) {
 		Version:         "1.0.0",
 		Environment:     "homol", // or "development", "staging"
 		IndexName:       "datavision-api-logs",
-		FlushInterval:   1 * time.Second,
-		BatchSize:       5,
+		FlushInterval:   5 * time.Second,
+		BatchSize:       1,
 		BufferSize:      1000,
 		LogLevel:        logger.LevelInfo,
 		EnableCaller:    true,
@@ -92,7 +92,7 @@ func (cfg *App) newClientES() error {
 		RetryBackoff:       3,
 		Timeout:            5 * time.Second,
 		EnableLogging:      true,
-		InsecureSkipVerify: false,
+		InsecureSkipVerify: true,
 	})
 	if err != nil {
 		return errors.New("creating elastic client: " + err.Error())
