@@ -1,0 +1,125 @@
+name: CD-Server
+
+on:
+  push:
+    branches:
+      - develop          # deploy DEV
+      - 'sprint/**'      # deploy QA/Homolog
+      - main             # deploy Staging
+      - prod             # deploy Produção (com aprovação)
+  workflow_dispatch: {}  # permite rodar manualmente
+
+env:
+  DOCKERHUB_ENABLED: 'true'  # mude para 'true' se for usar DockerHub
+  IMAGE_NAME: inineapi/visiondata6sem   # ajuste
+  # Geração de tag de imagem por branch
+  TAG: ${{ github.sha }}
+
+jobs:
+  gather-artifacts: # baixa artefatos e empacota
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: ./dist
+      - name: List artifacts
+        run: ls -R ./dist
+      - name: Compacta todos (bundle)
+        run: |
+          tar -czf pack-visiondata.tar.gz -C dist .
+      - name: Upload bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: pack-visiondata
+          path: pack-visiondata.tar.gz
+
+  # docker-build-push:
+  #   runs-on: ubuntu-latest
+  #   needs: gather-artifacts # garante que os artefatos já estejam prontos
+  #   if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/sprint/') }}
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: actions/download-artifact@v4
+  #       with:
+  #         path: ./dist
+  #     - name: Login DockerHub
+  #       uses: docker/login-action@v3
+  #       with:
+  #         username: ${{ secrets.DOCKERHUB_USERNAME }}
+  #         password: ${{ secrets.DOCKERHUB_TOKEN }}
+  #     - name: Setup buildx
+  #       uses: docker/setup-buildx-action@v3
+  #     - name: Build & Push (multi-arch)
+  #       uses: docker/build-push-action@v6
+  #       with:
+  #         context: .
+  #         push: true
+  #         tags: |
+  #           ${{ env.IMAGE_NAME }}:${{ github.ref_name }}-${{ env.TAG }}
+  #           ${{ env.IMAGE_NAME }}:${{ github.ref_name }}
+  #         platforms: linux/amd64,linux/arm64
+
+  deploy-dev:
+    runs-on: ubuntu-latest
+    needs: [gather-artifacts] # docker-build-push
+    if: ${{ startsWith(github.ref, 'refs/heads/develop') }}
+    environment:
+      name: dev
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: pack-visiondata
+          path: .
+      - name: Deploy DEV (exemplo)
+        run: |
+          echo "Exec: descompactar pacote e aplicar no DEV."
+          tar -xzf pack-visiondata.tar.gz
+
+  deploy-qa:
+    runs-on: ubuntu-latest
+    needs: [gather-artifacts] # docker-build-push
+    if: ${{ startsWith(github.ref, 'refs/heads/sprint/') }}
+    environment:
+      name: qa
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: pack-visiondata
+          path: .
+      - name: Deploy QA (Homolog)
+        run: |
+          echo "Deploy QA/Homolog."
+          tar -xzf pack-visiondata.tar.gz
+
+  deploy-staging:
+    runs-on: ubuntu-latest
+    needs: [gather-artifacts] # docker-build-push
+    if: ${{ github.ref == 'refs/heads/main' }}
+    environment:
+      name: staging
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: pack-visiondata
+          path: .
+      - name: Deploy Staging
+        run: |
+          echo "Deploy Staging."
+          tar -xzf pack-visiondata.tar.gz
+
+  deploy-prod:
+    runs-on: ubuntu-latest
+    needs: [gather-artifacts] # docker-build-push
+    if: ${{ github.ref == 'refs/heads/prod' }}
+    environment:
+      name: production           # configure approvals em Settings > Environments > production
+      url: https://sua-url-de-producao.exemplo
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: pack-visiondata
+          path: .
+      - name: Deploy Produção (gated)
+        run: |
+          echo "Deploy Produção APÓS APROVAÇÃO."
+          tar -xzf pack-visiondata.tar.gz
