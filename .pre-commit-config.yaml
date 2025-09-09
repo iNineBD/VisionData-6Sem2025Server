@@ -5,7 +5,7 @@ repos:
       - id: commit-msg-prefix
         name: Commit msg deve iniciar com API-<numero>
         language: system
-        entry: bash -c 'if ! grep -qE "^API-[0-999]+" "$1"; then echo "Erro-> Commit deve começar com API-XXX (ex-> API-81)"; exit 1; fi'
+        entry: bash -c 'if ! grep -qE "^API-(100|[1-9][0-9]?|[1-9])" "$1"; then echo "Erro-> Commit deve começar com API-XXX (ex-> API-81)"; exit 1; fi'
         args: [".git/commit-msg"]
         stages: [commit-msg]
         pass_filenames: true
