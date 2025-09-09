@@ -1,0 +1,39 @@
+repos:
+
+  - repo: local
+    hooks:
+      - id: check-api-commit-msg
+        name: "Valida formato 'API-XX' no commit"
+        language: system
+        entry: bash -c 'if ! grep -qE "^API-[0-100]+" "$1"; then echo "Erro-> Commit deve começar com API-XXX (ex-> API-81)"; exit 1; fi'
+        args: [".git/commit-msg"]
+        stages: [commit-msg]
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: check-yaml
+      - id: check-added-large-files
+
+  - repo: https://github.com/dnephin/pre-commit-golang
+    rev: v0.5.1
+    hooks:
+      - id: go-fmt
+      - id: go-vet
+      - id: go-lint
+      - id: go-imports
+      - id: go-cyclo
+        args: [-over=15]
+      - id: validate-toml
+      - id: no-go-testing
+      - id: golangci-lint
+      - id: go-critic
+      - id: go-unit-tests
+      - id: go-build
+      - id: go-mod-tidy
+
+  - repo: https://github.com/golangci/golangci-lint
+    rev: v2.4.0
+    hooks:
+      - id: golangci-lint
