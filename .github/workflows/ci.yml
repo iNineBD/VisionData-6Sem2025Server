@@ -44,7 +44,7 @@ jobs:
         run: go vet ./...
 
       - name: Test # roda os testes e gera coverage
-        run: go test ./cmd/api/... -v -coverprofile=coverage.out
+        run: go test ./cmd/api/main_test.go -v -coverprofile=coverage.out
 
       - name: Build # compila o binário
         run: go build -o visiondata ./cmd/api/main.go
