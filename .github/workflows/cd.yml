@@ -7,14 +7,12 @@ on:
       - completed
 
 env:
-  DOCKERHUB_ENABLED: 'true'  # mude para 'true' se for usar DockerHub
-  IMAGE_NAME: inineapi/visiondata6sem   # ajuste
-  # Geração de tag de imagem por branch
-  TAG: ${{ github.sha }}
+  DOCKERHUB_ENABLED: 'true'   # mude para 'false' se não for usar DockerHub
+  IMAGE_NAME: inineapi/visiondata6sem
+  TAG: ${{ github.event.workflow_run.head_sha }}
 
 jobs:
-  gather-artifacts: # baixa artefatos e empacota
-
+  gather-artifacts:
     runs-on: ubuntu-latest
     steps:
       - name: Baixa binário
@@ -23,27 +21,33 @@ jobs:
           name: visiondata
           run-id: ${{ github.event.workflow_run.id }}
           path: ./dist
+
       - name: Baixa cobertura
         uses: actions/download-artifact@v4
         with:
           name: coverage
+          run-id: ${{ github.event.workflow_run.id }}
           path: ./dist
+
       - name: List artifacts
         run: ls -R ./dist
+
       - name: Compacta todos (bundle)
         run: |
           tar -czf pack-visiondata.tar.gz -C dist .
+
       - name: Upload bundle
         uses: actions/upload-artifact@v4
         with:
           name: pack-visiondata
           path: pack-visiondata.tar.gz
+
       - name: Lista artefatos no CD
         run: ls -lh ./dist
 
   deploy-dev:
     runs-on: ubuntu-latest
-    needs: [gather-artifacts] # docker-build-push
+    needs: [gather-artifacts]
     if: ${{ github.event.workflow_run.head_branch == 'develop' }}
     environment:
       name: dev
@@ -54,13 +58,13 @@ jobs:
           path: .
       - name: Deploy DEV (exemplo)
         run: |
-          echo "Exec: descompactar pacote e aplicar no DEV."
+          echo "Deploy DEV"
           tar -xzf pack-visiondata.tar.gz
 
   deploy-qa:
     runs-on: ubuntu-latest
-    needs: [gather-artifacts] # docker-build-push
-    if: ${{ startsWith(github.ref, 'refs/heads/sprint/') }}
+    needs: [gather-artifacts]
+    if: ${{ startsWith(github.event.workflow_run.head_branch, 'sprint/') }}
     environment:
       name: qa
     steps:
@@ -70,13 +74,13 @@ jobs:
           path: .
       - name: Deploy QA (Homolog)
         run: |
-          echo "Deploy QA/Homolog."
+          echo "Deploy QA/Homolog"
           tar -xzf pack-visiondata.tar.gz
 
   deploy-staging:
     runs-on: ubuntu-latest
-    needs: [gather-artifacts] # docker-build-push
-    if: ${{ github.ref == 'refs/heads/main' }}
+    needs: [gather-artifacts]
+    if: ${{ github.event.workflow_run.head_branch == 'main' }}
     environment:
       name: staging
     steps:
@@ -86,15 +90,15 @@ jobs:
           path: .
       - name: Deploy Staging
         run: |
-          echo "Deploy Staging."
+          echo "Deploy Staging"
           tar -xzf pack-visiondata.tar.gz
 
   deploy-prod:
     runs-on: ubuntu-latest
-    needs: [gather-artifacts] # docker-build-push
-    if: ${{ github.ref == 'refs/heads/prod' }}
+    needs: [gather-artifacts]
+    if: ${{ github.event.workflow_run.head_branch == 'prod' }}
     environment:
-      name: production           # configure approvals em Settings > Environments > production
+      name: production
       url: https://sua-url-de-producao.exemplo
     steps:
       - uses: actions/download-artifact@v4
@@ -103,31 +107,5 @@ jobs:
           path: .
       - name: Deploy Produção (gated)
         run: |
-          echo "Deploy Produção APÓS APROVAÇÃO."
+          echo "Deploy Produção APÓS APROVAÇÃO"
           tar -xzf pack-visiondata.tar.gz
-
-  # docker-build-push:
-  #   runs-on: ubuntu-latest
-  #   needs: gather-artifacts # garante que os artefatos já estejam prontos
-  #   if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/sprint/') }}
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - uses: actions/download-artifact@v4
-  #       with:
-  #         path: ./dist
-  #     - name: Login DockerHub
-  #       uses: docker/login-action@v3
-  #       with:
-  #         username: ${{ secrets.DOCKERHUB_USERNAME }}
-  #         password: ${{ secrets.DOCKERHUB_TOKEN }}
-  #     - name: Setup buildx
-  #       uses: docker/setup-buildx-action@v3
-  #     - name: Build & Push (multi-arch)
-  #       uses: docker/build-push-action@v6
-  #       with:
-  #         context: .
-  #         push: true
-  #         tags: |
-  #           ${{ env.IMAGE_NAME }}:${{ github.ref_name }}-${{ env.TAG }}
-  #           ${{ env.IMAGE_NAME }}:${{ github.ref_name }}
-  #         platforms: linux/amd64,linux/arm64
