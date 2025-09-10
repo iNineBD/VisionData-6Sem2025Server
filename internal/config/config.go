@@ -62,15 +62,15 @@ func NewConfig() (*App, error) {
 // CloseAll - a function that closes all connections
 func (cfg *App) CloseAll() {
 	if cfg.Redis != nil {
-		cfg.Redis.Redis.Close()
+		_ = cfg.Redis.Redis.Close()
 	}
 
 	if cfg.ES != nil {
-		cfg.ES.ES.Indices.Flush.WithContext(context.Background())
+		_ = cfg.ES.ES.Indices.Flush.WithContext(context.Background())
 	}
 
 	if cfg.Logger != nil {
-		cfg.Logger.Close()
+		_ = cfg.Logger.Close()
 	}
 
 }
