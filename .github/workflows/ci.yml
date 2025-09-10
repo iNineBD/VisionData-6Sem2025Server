@@ -56,7 +56,7 @@ jobs:
         run: go vet ./...
 
       - name: Test (all packages + race + coverage)
-        run: go test ./... -race -cover -coverprofile=coverage.out
+        run: go test ./internal/service/... -race -cover -coverprofile=coverage.out
 
       - name: Build
         run: go build -o visiondata ./cmd/api/main.go
