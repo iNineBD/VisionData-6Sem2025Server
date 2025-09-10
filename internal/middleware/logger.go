@@ -12,7 +12,7 @@ import (
 )
 
 // setupLogger -
-func setupLogger(engine *gin.Engine, logger *logger.ElasticsearchLogger) {
+func setupLogger(engine *gin.Engine, logger *logger.FileLogger) {
 
 	middlewareConfig := MiddlewareConfig{
 		LogRequestBody:  true,
@@ -91,7 +91,7 @@ func (w *responseBodyWriter) Write(data []byte) (int, error) {
 }
 
 // LoggerMiddleware creates a Gin middleware that logs HTTP requests
-func LoggerMiddleware(esLogger *logger.ElasticsearchLogger, config ...MiddlewareConfig) gin.HandlerFunc {
+func LoggerMiddleware(esLogger *logger.FileLogger, config ...MiddlewareConfig) gin.HandlerFunc {
 	cfg := DefaultMiddlewareConfig()
 	if len(config) > 0 {
 		cfg = config[0]

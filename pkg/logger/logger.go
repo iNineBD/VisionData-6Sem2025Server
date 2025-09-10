@@ -1,20 +1,18 @@
 // Package logger provides a professional asynchronous logging solution for Go applications
-// with Elasticsearch integration and Gin middleware support.
+// with file-based storage and automatic rotation.
 package logger
 
 import (
-	"bytes"
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
+	"path/filepath"
 	"runtime"
-	"strings"
 	"sync"
 	"time"
 
-	"github.com/elastic/go-elasticsearch/v9"
 	"github.com/google/uuid"
 )
 
@@ -29,7 +27,7 @@ const (
 	LevelFatal LogLevel = "FATAL"
 )
 
-// LogEntry represents the complete structure of a log record in Elasticsearch
+// LogEntry represents the complete structure of a log record
 type LogEntry struct {
 	// Core fields
 	ID        string    `json:"id"`         // Unique identifier for the log entry
@@ -135,8 +133,8 @@ type Config struct {
 	Service         string        // Service name
 	Version         string        // Application version
 	Environment     string        // Environment (dev, staging, prod)
-	IndexName       string        // Elasticsearch index name
-	FlushInterval   time.Duration // How often to flush logs to Elasticsearch
+	LogDir          string        // Directory for log files
+	FlushInterval   time.Duration // How often to flush logs to file
 	BatchSize       int           // Maximum number of logs to batch
 	BufferSize      int           // Channel buffer size
 	LogLevel        LogLevel      // Minimum log level to process
@@ -145,12 +143,26 @@ type Config struct {
 	MaxBodySize     int           // Maximum body size to log
 	SensitiveFields []string      // Fields to redact in logs
 	ExecutionID     string        // Unique ID for each request
+	MaxFileSize     int64         // Maximum file size in bytes (default 10MB)
+	BufferSize64KB  int           // Buffer size for file writer (default 64KB)
 }
 
-// ElasticsearchLogger is the main logger instance
-type ElasticsearchLogger struct {
+// fileWriter manages the current log file with buffering
+type fileWriter struct {
+	mu           sync.RWMutex
+	file         *os.File
+	writer       *bufio.Writer
+	currentSize  int64
+	currentDate  string
+	currentIndex int
+	maxSize      int64
+	logDir       string
+	bufferSize   int
+}
+
+// FileLogger is the main logger instance
+type FileLogger struct {
 	config      Config
-	es          *elasticsearch.Client
 	logChannel  chan LogEntry
 	wg          sync.WaitGroup
 	ctx         context.Context
@@ -158,41 +170,59 @@ type ElasticsearchLogger struct {
 	hostname    string
 	pid         int
 	ExecutionID string
+	fileWriter  *fileWriter
 }
 
-// NewLogger creates a new ElasticsearchLogger instance
-func NewLogger(es *elasticsearch.Client, config Config) *ElasticsearchLogger {
+// NewLogger creates a new FileLogger instance
+func NewLogger(config Config) *FileLogger {
 	// Set defaults
-	if config.IndexName == "" {
-		config.IndexName = "application-logs"
+	if config.LogDir == "" {
+		config.LogDir = "./logs"
 	}
 	if config.FlushInterval == 0 {
 		config.FlushInterval = 1 * time.Second
 	}
 	if config.BatchSize == 0 {
-		config.BatchSize = 10
+		config.BatchSize = 100 // Aumentado para melhor performance
 	}
 	if config.BufferSize == 0 {
-		config.BufferSize = 1000
+		config.BufferSize = 10000 // Aumentado buffer
 	}
 	if config.LogLevel == "" {
 		config.LogLevel = LevelInfo
 	}
 	if config.MaxBodySize == 0 {
-		config.MaxBodySize = 1024 // 1KB default
+		config.MaxBodySize = 1024
+	}
+	if config.MaxFileSize == 0 {
+		config.MaxFileSize = 10 * 1024 * 1024 // 10MB
+	}
+	if config.BufferSize64KB == 0 {
+		config.BufferSize64KB = 64 * 1024 // 64KB buffer
 	}
 
 	hostname, _ := os.Hostname()
 	ctx, cancel := context.WithCancel(context.Background())
 
-	logger := &ElasticsearchLogger{
+	// Create log directory
+	if err := os.MkdirAll(config.LogDir, 0755); err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to create log directory: %v\n", err)
+	}
+
+	fw := &fileWriter{
+		maxSize:    config.MaxFileSize,
+		logDir:     config.LogDir,
+		bufferSize: config.BufferSize64KB,
+	}
+
+	logger := &FileLogger{
 		config:     config,
-		es:         es,
 		logChannel: make(chan LogEntry, config.BufferSize),
 		ctx:        ctx,
 		cancel:     cancel,
 		hostname:   hostname,
 		pid:        os.Getpid(),
+		fileWriter: fw,
 	}
 
 	// Start background goroutine for processing logs
@@ -202,13 +232,139 @@ func NewLogger(es *elasticsearch.Client, config Config) *ElasticsearchLogger {
 	return logger
 }
 
-// processLogs handles batching and sending logs to Elasticsearch
-func (l *ElasticsearchLogger) processLogs() {
+// ensureCurrentFile ensures we have a valid file for the current date
+func (fw *fileWriter) ensureCurrentFile() error {
+	currentDate := time.Now().Format("2006-01-02")
+
+	fw.mu.Lock()
+	defer fw.mu.Unlock()
+
+	// Check if we need to create a new file (new day or size limit)
+	if fw.file == nil || fw.currentDate != currentDate || fw.currentSize >= fw.maxSize {
+		if err := fw.rotateFile(currentDate); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// rotateFile creates a new log file
+func (fw *fileWriter) rotateFile(date string) error {
+	// Close current file if exists
+	if fw.writer != nil {
+		fw.writer.Flush()
+		fw.writer = nil
+	}
+	if fw.file != nil {
+		fw.file.Close()
+		fw.file = nil
+	}
+
+	// If it's a new day, reset index
+	if fw.currentDate != date {
+		fw.currentIndex = 0
+		fw.currentDate = date
+	} else {
+		fw.currentIndex++
+	}
+
+	// Create new file
+	filename := fmt.Sprintf("app-%s-%03d.log", date, fw.currentIndex)
+	logFilePath := filepath.Join(fw.logDir, date, filename)
+
+	// Create directory for the date
+	if err := os.MkdirAll(filepath.Dir(logFilePath), 0755); err != nil {
+		return fmt.Errorf("failed to create date directory: %w", err)
+	}
+
+	file, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to open log file: %w", err)
+	}
+
+	// Get current file size
+	stat, err := file.Stat()
+	if err != nil {
+		return fmt.Errorf("failed to stat log file: %w", err)
+	}
+
+	fw.file = file
+	fw.writer = bufio.NewWriterSize(file, fw.bufferSize)
+	fw.currentSize = stat.Size()
+
+	return nil
+}
+
+// writeEntry writes a log entry to the current file
+func (fw *fileWriter) writeEntry(entry LogEntry) error {
+	if err := fw.ensureCurrentFile(); err != nil {
+		return err
+	}
+
+	// Serialize to JSON
+	data, err := json.Marshal(entry)
+	if err != nil {
+		return fmt.Errorf("failed to marshal log entry: %w", err)
+	}
+
+	fw.mu.Lock()
+	defer fw.mu.Unlock()
+
+	// Write to buffer
+	n, err := fw.writer.Write(data)
+	if err != nil {
+		return fmt.Errorf("failed to write log entry: %w", err)
+	}
+
+	// Add newline
+	if _, err := fw.writer.WriteString("\n"); err != nil {
+		return fmt.Errorf("failed to write newline: %w", err)
+	}
+
+	fw.currentSize += int64(n + 1)
+
+	return nil
+}
+
+// flush forces a flush of the buffer
+func (fw *fileWriter) flush() error {
+	fw.mu.Lock()
+	defer fw.mu.Unlock()
+
+	if fw.writer != nil {
+		return fw.writer.Flush()
+	}
+	return nil
+}
+
+// close closes the file writer
+func (fw *fileWriter) close() error {
+	fw.mu.Lock()
+	defer fw.mu.Unlock()
+
+	var err error
+	if fw.writer != nil {
+		err = fw.writer.Flush()
+		fw.writer = nil
+	}
+	if fw.file != nil {
+		if e := fw.file.Close(); e != nil && err == nil {
+			err = e
+		}
+		fw.file = nil
+	}
+	return err
+}
+
+// processLogs handles batching and writing logs to files
+func (l *FileLogger) processLogs() {
 	defer l.wg.Done()
 
 	ticker := time.NewTicker(l.config.FlushInterval)
 	defer ticker.Stop()
 
+	// Pre-allocate batch slice for better performance
 	batch := make([]LogEntry, 0, l.config.BatchSize)
 
 	flush := func() {
@@ -216,11 +372,20 @@ func (l *ElasticsearchLogger) processLogs() {
 			return
 		}
 
-		if err := l.sendBatch(batch); err != nil {
-			// Fallback to stdout if Elasticsearch fails
-			fmt.Fprintf(os.Stderr, "Failed to send logs to Elasticsearch: %v\n", err)
+		// Write batch to file
+		for _, entry := range batch {
+			if err := l.fileWriter.writeEntry(entry); err != nil {
+				fmt.Fprintf(os.Stderr, "Failed to write log entry: %v\n", err)
+			}
 		}
-		batch = batch[:0] // Reset batch
+
+		// Flush file buffer
+		if err := l.fileWriter.flush(); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to flush log buffer: %v\n", err)
+		}
+
+		// Reset batch without reallocation
+		batch = batch[:0]
 	}
 
 	for {
@@ -241,59 +406,8 @@ func (l *ElasticsearchLogger) processLogs() {
 	}
 }
 
-// sendBatch sends a batch of log entries to Elasticsearch
-func (l *ElasticsearchLogger) sendBatch(entries []LogEntry) error {
-	if len(entries) == 0 {
-		return nil
-	}
-
-	var buf bytes.Buffer
-
-	for _, entry := range entries {
-		// Create index action
-		indexAction := map[string]interface{}{
-			"index": map[string]interface{}{
-				"_index": l.getIndexName(),
-				"_id":    entry.ID,
-			},
-		}
-
-		if err := json.NewEncoder(&buf).Encode(indexAction); err != nil {
-			return fmt.Errorf("failed to encode index action: %w", err)
-		}
-
-		// Add document
-		if err := json.NewEncoder(&buf).Encode(entry); err != nil {
-			return fmt.Errorf("failed to encode log entry: %w", err)
-		}
-	}
-
-	// Send bulk request
-	res, err := l.es.Bulk(
-		strings.NewReader(buf.String()),
-		l.es.Bulk.WithContext(l.ctx),
-		l.es.Bulk.WithRefresh("false"),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to send bulk request: %w", err)
-	}
-	defer res.Body.Close()
-
-	if res.IsError() {
-		body, _ := io.ReadAll(res.Body)
-		return fmt.Errorf("elasticsearch error: %s - %s", res.Status(), string(body))
-	}
-
-	return nil
-}
-
-// getIndexName generates index name with date suffix for daily rotation
-func (l *ElasticsearchLogger) getIndexName() string {
-	return fmt.Sprintf("%s", l.config.IndexName)
-}
-
 // shouldLog checks if the log level should be processed
-func (l *ElasticsearchLogger) shouldLog(level LogLevel) bool {
+func (l *FileLogger) shouldLog(level LogLevel) bool {
 	levels := map[LogLevel]int{
 		LevelDebug: 0,
 		LevelInfo:  1,
@@ -306,13 +420,13 @@ func (l *ElasticsearchLogger) shouldLog(level LogLevel) bool {
 }
 
 // createLogEntry creates a base log entry with common fields
-func (l *ElasticsearchLogger) createLogEntry(level LogLevel, message string) LogEntry {
+func (l *FileLogger) createLogEntry(level LogLevel, message string) LogEntry {
 	entry := LogEntry{
 		ID:          uuid.New().String(),
 		Timestamp:   time.Now().UTC(),
 		Level:       level,
 		Message:     message,
-		Logger:      "elasticsearch-logger",
+		Logger:      "file-logger",
 		Service:     l.config.Service,
 		Version:     l.config.Version,
 		Environment: l.config.Environment,
@@ -336,7 +450,7 @@ func (l *ElasticsearchLogger) createLogEntry(level LogLevel, message string) Log
 }
 
 // log sends a log entry to the processing channel
-func (l *ElasticsearchLogger) log(entry LogEntry) {
+func (l *FileLogger) log(entry LogEntry) {
 	if !l.shouldLog(entry.Level) {
 		return
 	}
@@ -350,7 +464,7 @@ func (l *ElasticsearchLogger) log(entry LogEntry) {
 }
 
 // Debug logs a debug message
-func (l *ElasticsearchLogger) Debug(message string, fields ...map[string]interface{}) {
+func (l *FileLogger) Debug(message string, fields ...map[string]interface{}) {
 	entry := l.createLogEntry(LevelDebug, message)
 	if len(fields) > 0 {
 		entry.Fields = fields[0]
@@ -359,7 +473,7 @@ func (l *ElasticsearchLogger) Debug(message string, fields ...map[string]interfa
 }
 
 // Info logs an info message
-func (l *ElasticsearchLogger) Info(message string, fields ...map[string]interface{}) {
+func (l *FileLogger) Info(message string, fields ...map[string]interface{}) {
 	entry := l.createLogEntry(LevelInfo, message)
 	if len(fields) > 0 {
 		entry.Fields = fields[0]
@@ -368,7 +482,7 @@ func (l *ElasticsearchLogger) Info(message string, fields ...map[string]interfac
 }
 
 // Warn logs a warning message
-func (l *ElasticsearchLogger) Warn(message string, fields ...map[string]interface{}) {
+func (l *FileLogger) Warn(message string, fields ...map[string]interface{}) {
 	entry := l.createLogEntry(LevelWarn, message)
 	if len(fields) > 0 {
 		entry.Fields = fields[0]
@@ -377,7 +491,7 @@ func (l *ElasticsearchLogger) Warn(message string, fields ...map[string]interfac
 }
 
 // Error logs an error message
-func (l *ElasticsearchLogger) Error(message string, err error, fields ...map[string]interface{}) {
+func (l *FileLogger) Error(message string, err error, fields ...map[string]interface{}) {
 	entry := l.createLogEntry(LevelError, message)
 	if err != nil {
 		entry.Error = &ErrorContext{
@@ -392,7 +506,7 @@ func (l *ElasticsearchLogger) Error(message string, err error, fields ...map[str
 }
 
 // Fatal logs a fatal message
-func (l *ElasticsearchLogger) Fatal(message string, err error, fields ...map[string]interface{}) {
+func (l *FileLogger) Fatal(message string, err error, fields ...map[string]interface{}) {
 	entry := l.createLogEntry(LevelFatal, message)
 	if err != nil {
 		entry.Error = &ErrorContext{
@@ -407,7 +521,7 @@ func (l *ElasticsearchLogger) Fatal(message string, err error, fields ...map[str
 }
 
 // WithContext logs with additional context
-func (l *ElasticsearchLogger) WithContext(level LogLevel, message string, ctx LogContext) {
+func (l *FileLogger) WithContext(level LogLevel, message string, ctx LogContext) {
 	if !l.shouldLog(level) {
 		return
 	}
@@ -434,16 +548,20 @@ type LogContext struct {
 }
 
 // Close gracefully shuts down the logger
-func (l *ElasticsearchLogger) Close() error {
+func (l *FileLogger) Close() error {
 	l.cancel()
 	l.wg.Wait()
 	close(l.logChannel)
-	return nil
+	return l.fileWriter.close()
 }
 
 // Flush forces immediate flush of pending logs
-func (l *ElasticsearchLogger) Flush() {
-	// Send a signal to process any pending logs
-	// This is a best-effort operation
+func (l *FileLogger) Flush() error {
+	// Send empty entry to trigger flush
+	select {
+	case l.logChannel <- LogEntry{}:
+	default:
+	}
 	time.Sleep(100 * time.Millisecond)
+	return l.fileWriter.flush()
 }
