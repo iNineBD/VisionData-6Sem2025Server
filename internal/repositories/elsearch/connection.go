@@ -120,7 +120,11 @@ func (c *Client) Ping() error {
 	if err != nil {
 		return err
 	}
-	defer res.Body.Close()
+	defer func() {
+		if err := res.Body.Close(); err != nil {
+			fmt.Printf("error closing response body: %v\n", err)
+		}
+	}()
 
 	if res.IsError() {
 		return fmt.Errorf("elasticsearch ping failed with status: %s", res.Status())
@@ -149,8 +153,11 @@ func (c *Client) CreateIndex(indexName string, mapping []byte) error {
 	if err != nil {
 		return fmt.Errorf("failed to create index %s: %w", indexName, err)
 	}
-	defer res.Body.Close()
-
+	defer func() {
+		if err := res.Body.Close(); err != nil {
+			fmt.Printf("error closing response body: %v\n", err)
+		}
+	}()
 	if res.IsError() {
 		return fmt.Errorf("failed to create index %s: %s", indexName, res.String())
 	}
@@ -164,8 +171,11 @@ func (c *Client) IndexExists(indexName string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	defer res.Body.Close()
-
+	defer func() {
+		if err := res.Body.Close(); err != nil {
+			fmt.Printf("error closing response body: %v\n", err)
+		}
+	}()
 	return res.StatusCode == 200, nil
 }
 
@@ -175,8 +185,11 @@ func (c *Client) DeleteIndex(indexName string) error {
 	if err != nil {
 		return fmt.Errorf("failed to delete index %s: %w", indexName, err)
 	}
-	defer res.Body.Close()
-
+	defer func() {
+		if err := res.Body.Close(); err != nil {
+			fmt.Printf("error closing response body: %v\n", err)
+		}
+	}()
 	if res.IsError() {
 		return fmt.Errorf("failed to delete index %s: %s", indexName, res.String())
 	}

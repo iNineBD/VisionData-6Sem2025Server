@@ -253,11 +253,11 @@ func (fw *fileWriter) ensureCurrentFile() error {
 func (fw *fileWriter) rotateFile(date string) error {
 	// Close current file if exists
 	if fw.writer != nil {
-		fw.writer.Flush()
+		_ = fw.writer.Flush()
 		fw.writer = nil
 	}
 	if fw.file != nil {
-		fw.file.Close()
+		_ = fw.file.Close()
 		fw.file = nil
 	}
 

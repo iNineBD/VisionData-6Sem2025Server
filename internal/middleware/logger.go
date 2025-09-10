@@ -117,8 +117,6 @@ func LoggerMiddleware(esLogger *logger.FileLogger, config ...MiddlewareConfig) g
 		}
 
 		start := time.Now()
-		path := c.Request.URL.Path
-		raw := c.Request.URL.RawQuery
 
 		// Generate or extract request ID
 		requestID := c.GetHeader(cfg.RequestIDHeader)
@@ -167,11 +165,6 @@ func LoggerMiddleware(esLogger *logger.FileLogger, config ...MiddlewareConfig) g
 		// Skip logging if ErrorsOnly is enabled and status is not an error
 		if cfg.ErrorsOnly && statusCode < 400 {
 			return
-		}
-
-		// Build query string
-		if raw != "" {
-			path = path + "?" + raw
 		}
 
 		// Collect headers (excluding sensitive ones)
