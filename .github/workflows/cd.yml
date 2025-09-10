@@ -19,8 +19,15 @@ jobs:
   gather-artifacts: # baixa artefatos e empacota
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v4
+      - name: Baixa binário
+        uses: actions/download-artifact@v4
         with:
+          name: visiondata
+          path: ./dist
+      - name: Baixa cobertura
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage
           path: ./dist
       - name: List artifacts
         run: ls -R ./dist
