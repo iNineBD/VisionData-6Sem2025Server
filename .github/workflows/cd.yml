@@ -39,6 +39,8 @@ jobs:
         with:
           name: pack-visiondata
           path: pack-visiondata.tar.gz
+      - name: Lista artefatos no CD
+        run: ls -lh ./dist
 
   deploy-dev:
     runs-on: ubuntu-latest
