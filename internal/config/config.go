@@ -15,7 +15,7 @@ import (
 type App struct {
 	Redis  *redis.RedisInternal
 	ES     *elsearch.Client
-	Logger *logger.ElasticsearchLogger
+	Logger *logger.FileLogger
 	// Mongo *mongo.MongoInternal
 }
 
@@ -40,7 +40,6 @@ func NewConfig() (*App, error) {
 		Service:         "datavision-api",
 		Version:         "1.0.0",
 		Environment:     "homol", // or "development", "staging"
-		IndexName:       "datavision-api-logs",
 		FlushInterval:   5 * time.Second,
 		BatchSize:       1,
 		BufferSize:      1000,
@@ -50,9 +49,12 @@ func NewConfig() (*App, error) {
 		MaxBodySize:     1024,
 		SensitiveFields: []string{"password", "token", "secret"},
 		ExecutionID:     executionID,
+		LogDir:          "logs",
+		MaxFileSize:     10 * 1024 * 1024,
+		BufferSize64KB:  10000,
 	}
 
-	cfg.Logger = logger.NewLogger(cfg.ES.ES, loggerConfig)
+	cfg.Logger = logger.NewLogger(loggerConfig)
 
 	return cfg, nil
 }
