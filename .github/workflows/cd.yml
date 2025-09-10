@@ -1,13 +1,10 @@
 name: CD-Server
 
 on:
-  push:
-    branches:
-      - develop          # deploy DEV
-      - 'sprint/**'      # deploy QA/Homolog
-      - main             # deploy Staging
-      - prod             # deploy Produção (com aprovação)
-  workflow_dispatch: {}  # permite rodar manualmente
+  workflow_run:
+    workflows: ["CI-Server"]
+    types:
+      - completed
 
 env:
   DOCKERHUB_ENABLED: 'true'  # mude para 'true' se for usar DockerHub
