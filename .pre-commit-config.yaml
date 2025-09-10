@@ -1,0 +1,33 @@
+repos:
+
+  - repo: local
+    hooks:
+      - id: commit-msg-prefix
+        name: Commit msg deve iniciar com API-<numero>
+        language: system
+        entry: bash -c 'if ! grep -qE "^API-(100|[1-9][0-9]?|[1-9])" "$1"; then echo "Erro-> Commit deve começar com API-XXX (ex-> API-81)"; exit 1; fi'
+        args: [".git/commit-msg"]
+        stages: [commit-msg]
+        pass_filenames: true
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+
+  - repo: https://github.com/dnephin/pre-commit-golang
+    rev: v0.5.1
+    hooks:
+      - id: go-lint
+
+
+  - repo: local
+    hooks:
+      - id: go-test
+        name: go test (unit)
+        language: system
+        entry: bash -c 'go test ./...'
+        pass_filenames: false

@@ -1,0 +1,93 @@
+name: CI-Server
+
+on:
+  pull_request:
+    branches:
+      - 'API/**'
+      - develop
+      - 'sprint/**'
+      - main
+      - prod
+  push:
+    branches:
+      - 'API/**'
+      - develop
+      - 'sprint/**'
+      - main
+      - prod
+
+permissions:
+  contents: read
+
+jobs:
+  golangci:
+    name: go-lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: stable
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.1
+
+  go-ci:
+    needs: [golangci]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23.2'
+          cache: true
+
+      - name: gofmt check
+        run: |
+          fmt_out=$(gofmt -l .)
+          if [ -n "$fmt_out" ]; then
+            echo "Arquivos não formatados:"
+            echo "$fmt_out"
+            exit 1
+          fi
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test (all packages + race + coverage)
+        run: go test ./... -race -cover -coverprofile=coverage.out
+
+      - name: Build
+        run: go build -o visiondata ./cmd/api/main.go
+
+      - name: Pacote (tar.gz)
+        run: tar -czf visiondata.tar.gz visiondata
+
+      - name: Upload artifact (bin)
+        uses: actions/upload-artifact@v4
+        with:
+          name: visiondata
+          path: visiondata.tar.gz
+
+      - name: Coverage Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage.out
+
+  sonarqube:
+    runs-on: ubuntu-latest
+    needs: [go-ci]
+    if: ${{ github.event_name == 'pull_request' || github.ref != 'refs/heads/API/**' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          name: coverage
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
