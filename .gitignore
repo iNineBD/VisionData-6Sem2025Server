@@ -157,3 +157,6 @@ fabric.properties
 .ionide
 
 # End of https://www.toptal.com/developers/gitignore/api/go,goland,visualstudiocode
+
+logs/
+*.log

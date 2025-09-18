@@ -14,8 +14,18 @@ services:
     volumes:
       - ./certs:/app/certs:ro
       - ./logs:/app/logs:rw
+      # Garantir que o diretório de logs existe no host
+      - type: bind
+        source: ./logs
+        target: /app/logs
+        bind:
+          create_host_path: true
     networks:
       - vision-network
+    # Adicionar variáveis de ambiente para debug
+    environment:
+      - LOG_DIR=/app/logs
+      - DEBUG=true
 
   redis:
     image: redis:7.4-alpine

@@ -234,7 +234,7 @@ func NewLogger(config Config) *FileLogger {
 
 // ensureCurrentFile ensures we have a valid file for the current date
 func (fw *fileWriter) ensureCurrentFile() error {
-	currentDate := time.Now().Format("2006-01-02")
+	currentDate := time.Now().Format("2006-01-02") + uuid.NewString()[:4]
 
 	fw.mu.Lock()
 	defer fw.mu.Unlock()
