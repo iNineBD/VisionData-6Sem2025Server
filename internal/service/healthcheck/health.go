@@ -1,6 +1,7 @@
 package healthcheck
 
 import (
+	"fmt"
 	"net/http"
 	"orderstreamrest/internal/config"
 	"orderstreamrest/internal/models/dto"
@@ -30,10 +31,7 @@ var startTime = time.Now()
 // @Router       /healthcheck [get]
 func Health(cfg *config.App) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		cfg.Logger.Info("Healthcheck endpoint hit", map[string]interface{}{
-			"user_agent": c.GetHeader("User-Agent"),
-			"ip":         c.ClientIP(),
-		})
+		cfg.Logger.Info(fmt.Sprintf("Healthcheck endpoint hit... IP %s", c.ClientIP()))
 
 		// Removi o log de erro desnecessário
 		// cfg.Logger.Error("Vish, deu erro aqui", errors.New("Ola"))
@@ -72,11 +70,7 @@ func Health(cfg *config.App) gin.HandlerFunc {
 			checks,
 		)
 
-		cfg.Logger.Info("Healthcheck completed", map[string]interface{}{
-			"status": status,
-			"uptime": uptime,
-			"checks": checks,
-		})
+		cfg.Logger.Info(fmt.Sprintf("Healthcheck status: %s", status))
 
 		// Status HTTP baseado no status das verificações
 		httpStatus := http.StatusOK

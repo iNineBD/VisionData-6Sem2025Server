@@ -60,11 +60,10 @@ func main() {
 	}
 	defer cfg.CloseAll()
 
-	cfg.Logger.Info("Starting VisionData API", map[string]interface{}{
-		"execution_id": cfg.Logger.ExecutionID,
-		"environment":  os.Getenv("ENVIRONMENT_APP"),
-		"version":      "1.0.0",
-	})
+	cfg.Logger.Info(fmt.Sprintf(
+		"Starting VisionData API | execution_id=%s | version=1.0.0",
+		os.Getenv("ENVIRONMENT_APP"),
+	))
 
 	// Setup do servidor
 	engine := middleware.SetupServer(cfg)
@@ -75,31 +74,28 @@ func main() {
 	// Iniciar servidor
 	startServer(engine, cfg)
 }
-
 func startServer(engine *gin.Engine, cfg *config.App) {
 	certFile, keyFile := utils.GetCertFiles()
 
 	if certFile != "" && keyFile != "" {
-		cfg.Logger.Info("Starting server with TLS", map[string]interface{}{
-			"port":      "8080",
-			"cert_file": certFile,
-			"key_file":  keyFile,
-		})
+		cfg.Logger.Info(
+			fmt.Sprintf("Starting server with TLS on port 8080, cert_file=%s, key_file=%s", certFile, keyFile),
+		)
 
 		if err := engine.RunTLS(":8080", certFile, keyFile); err != nil {
-			cfg.Logger.Fatal("Error starting TLS server", err, map[string]interface{}{
-				"port": "8080",
-			})
+			cfg.Logger.Fatal(
+				fmt.Sprintf("Error starting TLS server on port 8080: %v", err),
+			)
 		}
 	} else {
-		cfg.Logger.Info("Starting server without TLS", map[string]interface{}{
-			"port": "8080",
-		})
+		cfg.Logger.Info(
+			"Starting server without TLS on port 8080",
+		)
 
 		if err := engine.Run(":8080"); err != nil {
-			cfg.Logger.Fatal("Error starting server", err, map[string]interface{}{
-				"port": "8080",
-			})
+			cfg.Logger.Fatal(
+				fmt.Sprintf("Error starting server on port 8080: %v", err),
+			)
 		}
 	}
 }

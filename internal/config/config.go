@@ -7,15 +7,13 @@ import (
 	"orderstreamrest/internal/repositories/redis"
 	"orderstreamrest/pkg/logger"
 	"time"
-
-	"github.com/google/uuid"
 )
 
 // App - a struct that holds a redis client
 type App struct {
 	Redis  *redis.RedisInternal
 	ES     *elsearch.Client
-	Logger *logger.FileLogger
+	Logger *logger.Logger
 	// Mongo *mongo.MongoInternal
 }
 
@@ -23,8 +21,6 @@ type App struct {
 func NewConfig() (*App, error) {
 
 	cfg := new(App)
-
-	executionID := uuid.New().String()[0:5]
 
 	err := cfg.newClientRedis()
 	if err != nil {
@@ -37,21 +33,11 @@ func NewConfig() (*App, error) {
 	}
 
 	loggerConfig := logger.Config{
-		Service:         "datavision-api",
-		Version:         "1.0.0",
-		Environment:     "homol", // or "development", "staging"
-		FlushInterval:   5 * time.Second,
-		BatchSize:       1,
-		BufferSize:      1000,
-		LogLevel:        logger.LevelInfo,
-		EnableCaller:    true,
-		EnableBody:      true, // Set to true if you want to log request/response bodies
-		MaxBodySize:     1024,
-		SensitiveFields: []string{"password", "token", "secret"},
-		ExecutionID:     executionID,
-		LogDir:          "logs",
-		MaxFileSize:     10 * 1024 * 1024,
-		BufferSize64KB:  10000,
+		FlushInterval: 5 * time.Second,
+		BufferSize:    1000,
+		LogLevel:      logger.LevelDebug,
+		EnableCaller:  true,
+		LogDir:        "logs",
 	}
 
 	cfg.Logger = logger.NewLogger(loggerConfig)
