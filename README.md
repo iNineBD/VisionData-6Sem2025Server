@@ -4,7 +4,7 @@ A REST API developed in Go using the Gin framework, integrated with Elasticsearc
 
 ## 📁 Project Structure
 
-```
+```.
 ├── cmd/                          # Application entry point
 │   └── api/
 │       ├── main.go              # Main application file
@@ -135,7 +135,7 @@ For HTTPS execution, place certificates in the `./certs/` folder:
 
 ### Health Check
 
-```
+```.
 GET /healthcheck/
 ```
 
