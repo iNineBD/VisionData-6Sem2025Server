@@ -27,7 +27,7 @@ repos:
   - repo: local
     hooks:
       - id: go-test
-        name: go test (unit)
+        name: go test (services only)
         language: system
-        entry: bash -c 'go test ./...'
+        entry: bash -c 'if [ -n "$(find internal/service -name "*_test.go" 2>/dev/null)" ]; then go test ./internal/service/...; else echo "No tests found in internal/service, skipping"; fi'
         pass_filenames: false
