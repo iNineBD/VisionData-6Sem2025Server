@@ -92,7 +92,9 @@ func NewLogger(config Config) *Logger {
 func (l *Logger) initLogFile() error {
 	// Close existing file if open
 	if l.file != nil {
-		l.file.Close()
+		if err := l.file.Close(); err != nil {
+			return fmt.Errorf("failed to close previous log file: %w", err)
+		}
 		l.file = nil
 	}
 
