@@ -2,10 +2,13 @@ package middleware
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"orderstreamrest/internal/config"
+	"orderstreamrest/internal/models/dto"
 	redisInternal "orderstreamrest/internal/repositories/redis"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -52,6 +55,13 @@ func setupRedisDB(engine *gin.Engine, cfg *config.App) {
 // Middleware retorna o middleware do Gin para rate limiting
 func (rl *RateLimiter) Middleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
+
+		// Permite requisições para qualquer rota que contenha "swagger" sem rate limiting
+		if strings.Contains(c.FullPath(), "swagger") {
+			c.Next()
+			return
+		}
+
 		ip := c.ClientIP()
 
 		allowed, retryAfter, err := rl.checkRateLimit(c.Request.Context(), ip)
@@ -114,26 +124,58 @@ func (rl *RateLimiter) checkRateLimit(ctx context.Context, ip string) (allowed b
 
 // handleError trata erros internos
 func (rl *RateLimiter) handleError(c *gin.Context, err error) {
-	c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
-		"error":   "Internal server error",
-		"message": err.Error(),
-	})
+	errorResponse := dto.NewErrorResponse(
+		c,
+		http.StatusInternalServerError,
+		"internal_server_error",
+		"Internal server error",
+		map[string]interface{}{
+			"original_error": err.Error(),
+		},
+	)
+
+	c.AbortWithStatusJSON(http.StatusInternalServerError, errorResponse)
 }
 
 // handleRateLimitExceeded trata quando o limite é excedido
 func (rl *RateLimiter) handleRateLimitExceeded(c *gin.Context, retryAfter time.Duration) {
+	// Adicionar headers de rate limiting
 	c.Writer.Header().Set("Retry-After", retryAfter.String())
-	c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
-		"error": "Too many requests",
-	})
-}
+	c.Writer.Header().Set("X-RateLimit-Limit", "100") // ajuste conforme sua configuração
+	c.Writer.Header().Set("X-RateLimit-Remaining", "0")
+	c.Writer.Header().Set("X-RateLimit-Reset", time.Now().Add(retryAfter).Format(time.RFC3339))
 
+	errorResponse := dto.NewRateLimitErrorResponse(
+		c,
+		retryAfter.String(),
+		100, // limite por minuto - ajuste conforme sua configuração
+		0,   // requests restantes
+		time.Now().Add(retryAfter),
+	)
+
+	c.AbortWithStatusJSON(http.StatusTooManyRequests, errorResponse)
+}
 func setupSemaphore(engine *gin.Engine) {
 	max := getEnvAsInt64("MAX_REQUEST_COUNT_GLOBAL", int64(10))
 	sema := semaphore.NewWeighted(max)
+
 	engine.Use(func(c *gin.Context) {
 		if err := sema.Acquire(c.Request.Context(), 1); err != nil {
-			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{"error": "Too many requests"})
+			errorResponse := dto.NewRateLimitErrorResponse(
+				c,
+				"60s", // retry after 60 seconds
+				int(max),
+				0,
+				time.Now().Add(time.Minute),
+			)
+
+			// Adicionar headers de rate limiting
+			c.Writer.Header().Set("Retry-After", "60")
+			c.Writer.Header().Set("X-RateLimit-Limit", fmt.Sprintf("%d", max))
+			c.Writer.Header().Set("X-RateLimit-Remaining", "0")
+			c.Writer.Header().Set("X-RateLimit-Reset", time.Now().Add(time.Minute).Format(time.RFC3339))
+
+			c.AbortWithStatusJSON(http.StatusTooManyRequests, errorResponse)
 			return
 		}
 		defer sema.Release(1)

@@ -6,10 +6,15 @@ import (
 	"orderstreamrest/internal/service/healthcheck"
 
 	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 // InitiateRoutes is a function that initializes the routes for the application
 func InitiateRoutes(engine *gin.Engine, cfg *config.App) {
+
+	engine.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+
 	healthGroup := engine.Group("/healthcheck", middleware.Auth())
 
 	healthGroup.GET("/", healthcheck.Health(cfg))

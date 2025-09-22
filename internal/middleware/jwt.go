@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"orderstreamrest/internal/models/dto"
 	"os"
 	"strings"
 	"time"
@@ -61,17 +62,21 @@ func DecoteTokenJWT(token string) (jwt.MapClaims, error) {
 
 	return nil, fmt.Errorf("invalid token")
 }
+
+// Auth is a middleware function that checks for a valid JWT token in the Authorization header
 func Auth() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		token := c.GetHeader("Authorization")
 		if token == "" {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "JWT token not provided"})
+			authError := dto.NewAuthErrorResponse(c, "Invalid token")
+			c.AbortWithStatusJSON(http.StatusUnauthorized, authError)
 			return
 		}
 
 		parts := strings.Split(token, " ")
 		if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid Authorization header format"})
+			authError := dto.NewAuthErrorResponse(c, "Invalid token format. Use: Bearer <token>")
+			c.AbortWithStatusJSON(http.StatusUnauthorized, authError)
 			return
 		}
 
@@ -79,7 +84,8 @@ func Auth() gin.HandlerFunc {
 
 		claims, err := DecoteTokenJWT(token)
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+			authError := dto.NewAuthErrorResponse(c, "Invalid token")
+			c.AbortWithStatusJSON(http.StatusUnauthorized, authError)
 			return
 		}
 
