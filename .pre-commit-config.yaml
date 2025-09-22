@@ -18,10 +18,14 @@ repos:
       - id: check-yaml
       - id: check-added-large-files
 
-  - repo: https://github.com/dnephin/pre-commit-golang
-    rev: v0.5.1
+  - repo: local
     hooks:
-      - id: go-lint
+      - id: golangci-lint-local
+        name: golangci-lint (local)
+        language: system
+        entry: golangci-lint run
+        args: ['--timeout=5m', './...']
+        pass_filenames: false
 
 
   - repo: local

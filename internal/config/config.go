@@ -5,15 +5,17 @@ import (
 	"errors"
 	"orderstreamrest/internal/repositories/elsearch"
 	"orderstreamrest/internal/repositories/redis"
+	"orderstreamrest/internal/repositories/sqlserver"
 	"orderstreamrest/pkg/logger"
 	"time"
 )
 
 // App - a struct that holds a redis client
 type App struct {
-	Redis  *redis.RedisInternal
-	ES     *elsearch.Client
-	Logger *logger.Logger
+	Redis     *redis.RedisInternal
+	ES        *elsearch.Client
+	Logger    *logger.Logger
+	SqlServer *sqlserver.Internal
 	// Mongo *mongo.MongoInternal
 }
 
@@ -41,6 +43,13 @@ func NewConfig() (*App, error) {
 	}
 
 	cfg.Logger = logger.NewLogger(loggerConfig)
+
+	sqlServer, err := sqlserver.NewSQLServerInternal()
+	if err != nil {
+		return cfg, err
+	}
+
+	cfg.SqlServer = sqlServer
 
 	return cfg, nil
 }
