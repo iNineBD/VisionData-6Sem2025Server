@@ -1,6 +1,6 @@
 basePath: /
 definitions:
-  dto.AuthErrorResponse:
+  orderstreamrest_internal_models_dto.AuthErrorResponse:
     properties:
       code:
         example: 401
@@ -21,7 +21,7 @@ definitions:
       timestamp:
         type: string
     type: object
-  dto.ErrorResponse:
+  orderstreamrest_internal_models_dto.ErrorResponse:
     properties:
       code:
         type: integer
@@ -37,7 +37,7 @@ definitions:
       timestamp:
         type: string
     type: object
-  dto.HealthResponse:
+  orderstreamrest_internal_models_dto.HealthResponse:
     properties:
       checks:
         additionalProperties:
@@ -62,7 +62,14 @@ definitions:
         example: 1.0.0
         type: string
     type: object
-  dto.RateLimitErrorResponse:
+  orderstreamrest_internal_models_dto.MetricValue:
+    properties:
+      name:
+        type: string
+      value:
+        type: integer
+    type: object
+  orderstreamrest_internal_models_dto.RateLimitErrorResponse:
     properties:
       code:
         example: 429
@@ -91,6 +98,24 @@ definitions:
         type: boolean
       timestamp:
         type: string
+    type: object
+  orderstreamrest_internal_models_dto.TicketsMetricsResponse:
+    properties:
+      metrics:
+        items:
+          $ref: '#/definitions/orderstreamrest_internal_models_dto.TypeMetric'
+        type: array
+      totalTickets:
+        type: integer
+    type: object
+  orderstreamrest_internal_models_dto.TypeMetric:
+    properties:
+      name:
+        type: string
+      values:
+        items:
+          $ref: '#/definitions/orderstreamrest_internal_models_dto.MetricValue'
+        type: array
     type: object
 host: localhost:8080
 info:
@@ -128,32 +153,80 @@ paths:
               description: Timestamp do reset do rate limit
               type: string
           schema:
-            $ref: '#/definitions/dto.HealthResponse'
+            $ref: '#/definitions/orderstreamrest_internal_models_dto.HealthResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            $ref: '#/definitions/orderstreamrest_internal_models_dto.ErrorResponse'
         "401":
           description: Unauthorized - Token inválido
           schema:
-            $ref: '#/definitions/dto.AuthErrorResponse'
+            $ref: '#/definitions/orderstreamrest_internal_models_dto.AuthErrorResponse'
         "403":
           description: Forbidden - Sem permissão
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            $ref: '#/definitions/orderstreamrest_internal_models_dto.ErrorResponse'
         "429":
           description: Rate limit excedido
           schema:
-            $ref: '#/definitions/dto.RateLimitErrorResponse'
+            $ref: '#/definitions/orderstreamrest_internal_models_dto.RateLimitErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            $ref: '#/definitions/orderstreamrest_internal_models_dto.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Health Check
       tags:
       - health
+  /metrics/tickets:
+    get:
+      consumes:
+      - application/json
+      description: Retorna métricas agregadas dos tickets por categoria, prioridade,
+        canal e tag
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Tickets metrics retrieved successfully
+          headers:
+            X-RateLimit-Limit:
+              description: Requests per minute limit
+              type: string
+            X-RateLimit-Remaining:
+              description: Remaining requests in the period
+              type: string
+            X-RateLimit-Reset:
+              description: Rate limit reset timestamp
+              type: string
+          schema:
+            $ref: '#/definitions/orderstreamrest_internal_models_dto.TicketsMetricsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orderstreamrest_internal_models_dto.ErrorResponse'
+        "401":
+          description: Unauthorized - Invalid token
+          schema:
+            $ref: '#/definitions/orderstreamrest_internal_models_dto.AuthErrorResponse'
+        "403":
+          description: Forbidden - No permission
+          schema:
+            $ref: '#/definitions/orderstreamrest_internal_models_dto.ErrorResponse'
+        "429":
+          description: Rate limit exceeded
+          schema:
+            $ref: '#/definitions/orderstreamrest_internal_models_dto.RateLimitErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/orderstreamrest_internal_models_dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Métricas de Tickets
+      tags:
+      - metrics
 securityDefinitions:
   BearerAuth:
     description: Type "Bearer" followed by a space and JWT token.

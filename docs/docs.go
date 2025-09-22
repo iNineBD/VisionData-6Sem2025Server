@@ -45,7 +45,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Status do serviço",
                         "schema": {
-                            "$ref": "#/definitions/dto.HealthResponse"
+                            "$ref": "#/definitions/orderstreamrest_internal_models_dto.HealthResponse"
                         },
                         "headers": {
                             "X-RateLimit-Limit": {
@@ -65,31 +65,103 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "$ref": "#/definitions/orderstreamrest_internal_models_dto.ErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized - Token inválido",
                         "schema": {
-                            "$ref": "#/definitions/dto.AuthErrorResponse"
+                            "$ref": "#/definitions/orderstreamrest_internal_models_dto.AuthErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden - Sem permissão",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "$ref": "#/definitions/orderstreamrest_internal_models_dto.ErrorResponse"
                         }
                     },
                     "429": {
                         "description": "Rate limit excedido",
                         "schema": {
-                            "$ref": "#/definitions/dto.RateLimitErrorResponse"
+                            "$ref": "#/definitions/orderstreamrest_internal_models_dto.RateLimitErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "$ref": "#/definitions/orderstreamrest_internal_models_dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/metrics/tickets": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retorna métricas agregadas dos tickets por categoria, prioridade, canal e tag",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "metrics"
+                ],
+                "summary": "Métricas de Tickets",
+                "responses": {
+                    "200": {
+                        "description": "Tickets metrics retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/orderstreamrest_internal_models_dto.TicketsMetricsResponse"
+                        },
+                        "headers": {
+                            "X-RateLimit-Limit": {
+                                "type": "string",
+                                "description": "Requests per minute limit"
+                            },
+                            "X-RateLimit-Remaining": {
+                                "type": "string",
+                                "description": "Remaining requests in the period"
+                            },
+                            "X-RateLimit-Reset": {
+                                "type": "string",
+                                "description": "Rate limit reset timestamp"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orderstreamrest_internal_models_dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized - Invalid token",
+                        "schema": {
+                            "$ref": "#/definitions/orderstreamrest_internal_models_dto.AuthErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - No permission",
+                        "schema": {
+                            "$ref": "#/definitions/orderstreamrest_internal_models_dto.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Rate limit exceeded",
+                        "schema": {
+                            "$ref": "#/definitions/orderstreamrest_internal_models_dto.RateLimitErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/orderstreamrest_internal_models_dto.ErrorResponse"
                         }
                     }
                 }
@@ -97,7 +169,7 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "dto.AuthErrorResponse": {
+        "orderstreamrest_internal_models_dto.AuthErrorResponse": {
             "type": "object",
             "properties": {
                 "code": {
@@ -127,7 +199,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.ErrorResponse": {
+        "orderstreamrest_internal_models_dto.ErrorResponse": {
             "type": "object",
             "properties": {
                 "code": {
@@ -151,7 +223,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.HealthResponse": {
+        "orderstreamrest_internal_models_dto.HealthResponse": {
             "type": "object",
             "properties": {
                 "checks": {
@@ -187,7 +259,18 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.RateLimitErrorResponse": {
+        "orderstreamrest_internal_models_dto.MetricValue": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "integer"
+                }
+            }
+        },
+        "orderstreamrest_internal_models_dto.RateLimitErrorResponse": {
             "type": "object",
             "properties": {
                 "code": {
@@ -228,6 +311,34 @@ const docTemplate = `{
                     "type": "string"
                 }
             }
+        },
+        "orderstreamrest_internal_models_dto.TicketsMetricsResponse": {
+            "type": "object",
+            "properties": {
+                "metrics": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/orderstreamrest_internal_models_dto.TypeMetric"
+                    }
+                },
+                "totalTickets": {
+                    "type": "integer"
+                }
+            }
+        },
+        "orderstreamrest_internal_models_dto.TypeMetric": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "values": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/orderstreamrest_internal_models_dto.MetricValue"
+                    }
+                }
+            }
         }
     },
     "securityDefinitions": {
@@ -250,6 +361,8 @@ var SwaggerInfo = &swag.Spec{
 	Description:      "API REST para aplicação VisionData com recursos de autenticação, rate limiting e monitoramento.",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
+	LeftDelim:        "{{",
+	RightDelim:       "}}",
 }
 
 func init() {
