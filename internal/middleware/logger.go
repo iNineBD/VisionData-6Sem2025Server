@@ -193,7 +193,6 @@ func LoggerMiddleware(esLogger *logger.Logger, config ...MiddlewareConfig) gin.H
 			message = "HTTP Client Error"
 		case statusCode >= 300:
 			message = "HTTP Redirect"
-			message = "HTTP Redirect"
 		default:
 			message = "HTTP Request"
 		}
