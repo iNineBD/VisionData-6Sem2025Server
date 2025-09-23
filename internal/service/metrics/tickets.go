@@ -111,6 +111,22 @@ func GetTicketsMetrics(cfg *config.App) gin.HandlerFunc {
 			})
 		}
 
+		// total de tickets por departamento
+		ticketsByDepartment, err := cfg.SqlServer.GetTicketsByDepartment()
+		if err == nil {
+			var departmentMetrics []dto.MetricValue
+			for _, item := range ticketsByDepartment {
+				departmentMetrics = append(departmentMetrics, dto.MetricValue{
+					Name:  item.Name,
+					Value: item.Total,
+				})
+			}
+			metrics = append(metrics, dto.TypeMetric{
+				Name:   "TicketsByDepartment",
+				Values: departmentMetrics,
+			})
+		}
+
 		response := dto.TicketsMetricsResponse{
 			TotalTickets: total,
 			Metrics:      metrics,
