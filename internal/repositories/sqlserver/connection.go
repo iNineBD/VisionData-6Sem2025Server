@@ -133,20 +133,20 @@ func (s *Internal) GetTicketsByTag() ([]struct {
 	return results, err
 }
 
-// retorna o total de tickets por departamento
-// func (s *Internal) GetTicketsByDepartment() ([]struct {
-// 	entities.Dim_Companies
-// 	Total int64
-// }, error) {
-// 	var results []struct {
-// 		entities.Dim_Companies
-// 		Total int64
-// 	}
-// 	err := s.db.Table("DW.Fact_Tickets ft").
-// 		Select("dc.Name, SUM(ft.QtTickets) as Total").
-// 		Joins("INNER JOIN DW.Dim_Companies dc ON ft.CompanyKey = dc.CompanyKey").
-// 		Group("dc.Name").
-// 		Order("Total DESC").
-// 		Scan(&results).Error
-// 	return results, err
-// }
+// Retorna o total de tickets por departamento
+func (s *Internal) GetTicketsByDepartment() ([]struct {
+	entities.Dim_Companies
+	Total int64
+}, error) {
+	var results []struct {
+		entities.Dim_Companies
+		Total int64
+	}
+	err := s.db.Table("DW.Fact_Tickets ft").
+		Select("dc.Name, SUM(ft.QtTickets) as Total").
+		Joins("INNER JOIN DW.Dim_Companies dc ON ft.CompanyKey = dc.CompanyKey").
+		Group("dc.Name").
+		Order("Total DESC").
+		Scan(&results).Error
+	return results, err
+}
