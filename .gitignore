@@ -163,6 +163,6 @@ logs/
 
 .env
 
-docs/docs.go
 docs/swagger.yaml
 docs/swagger.json
+docs/docs.go
