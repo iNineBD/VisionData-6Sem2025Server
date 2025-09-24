@@ -94,6 +94,78 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/metrics/tickets": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retorna métricas agregadas dos tickets por categoria, prioridade, canal e tag",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "metrics"
+                ],
+                "summary": "Métricas de Tickets",
+                "responses": {
+                    "200": {
+                        "description": "Tickets metrics retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.TicketsMetricsResponse"
+                        },
+                        "headers": {
+                            "X-RateLimit-Limit": {
+                                "type": "string",
+                                "description": "Requests per minute limit"
+                            },
+                            "X-RateLimit-Remaining": {
+                                "type": "string",
+                                "description": "Remaining requests in the period"
+                            },
+                            "X-RateLimit-Reset": {
+                                "type": "string",
+                                "description": "Rate limit reset timestamp"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized - Invalid token",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AuthErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - No permission",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Rate limit exceeded",
+                        "schema": {
+                            "$ref": "#/definitions/dto.RateLimitErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -187,6 +259,17 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.MetricValue": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "integer"
+                }
+            }
+        },
         "dto.RateLimitErrorResponse": {
             "type": "object",
             "properties": {
@@ -228,6 +311,34 @@ const docTemplate = `{
                     "type": "string"
                 }
             }
+        },
+        "dto.TicketsMetricsResponse": {
+            "type": "object",
+            "properties": {
+                "metrics": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.TypeMetric"
+                    }
+                },
+                "totalTickets": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.TypeMetric": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "values": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.MetricValue"
+                    }
+                }
+            }
         }
     },
     "securityDefinitions": {
@@ -250,6 +361,8 @@ var SwaggerInfo = &swag.Spec{
 	Description:      "API REST para aplicação VisionData com recursos de autenticação, rate limiting e monitoramento.",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
+	LeftDelim:        "{{",
+	RightDelim:       "}}",
 }
 
 func init() {

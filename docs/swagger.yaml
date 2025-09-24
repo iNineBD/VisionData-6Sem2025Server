@@ -62,6 +62,13 @@ definitions:
         example: 1.0.0
         type: string
     type: object
+  dto.MetricValue:
+    properties:
+      name:
+        type: string
+      value:
+        type: integer
+    type: object
   dto.RateLimitErrorResponse:
     properties:
       code:
@@ -91,6 +98,24 @@ definitions:
         type: boolean
       timestamp:
         type: string
+    type: object
+  dto.TicketsMetricsResponse:
+    properties:
+      metrics:
+        items:
+          $ref: '#/definitions/dto.TypeMetric'
+        type: array
+      totalTickets:
+        type: integer
+    type: object
+  dto.TypeMetric:
+    properties:
+      name:
+        type: string
+      values:
+        items:
+          $ref: '#/definitions/dto.MetricValue'
+        type: array
     type: object
 host: localhost:8080
 info:
@@ -154,6 +179,54 @@ paths:
       summary: Health Check
       tags:
       - health
+  /metrics/tickets:
+    get:
+      consumes:
+      - application/json
+      description: Retorna métricas agregadas dos tickets por categoria, prioridade,
+        canal e tag
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Tickets metrics retrieved successfully
+          headers:
+            X-RateLimit-Limit:
+              description: Requests per minute limit
+              type: string
+            X-RateLimit-Remaining:
+              description: Remaining requests in the period
+              type: string
+            X-RateLimit-Reset:
+              description: Rate limit reset timestamp
+              type: string
+          schema:
+            $ref: '#/definitions/dto.TicketsMetricsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized - Invalid token
+          schema:
+            $ref: '#/definitions/dto.AuthErrorResponse'
+        "403":
+          description: Forbidden - No permission
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "429":
+          description: Rate limit exceeded
+          schema:
+            $ref: '#/definitions/dto.RateLimitErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Métricas de Tickets
+      tags:
+      - metrics
 securityDefinitions:
   BearerAuth:
     description: Type "Bearer" followed by a space and JWT token.

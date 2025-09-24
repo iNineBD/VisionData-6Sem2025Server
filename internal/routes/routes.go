@@ -19,4 +19,7 @@ func InitiateRoutes(engine *gin.Engine, cfg *config.App) {
 
 	healthGroup.GET("/", healthcheck.Health(cfg))
 
+	// Inicializar rotas de métricas
+	SetupMetricsRoutes(engine, cfg)
+
 }

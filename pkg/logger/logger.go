@@ -92,11 +92,10 @@ func NewLogger(config Config) *Logger {
 func (l *Logger) initLogFile() error {
 	// Close existing file if open
 	if l.file != nil {
-		err := l.file.Close()
-		l.file = nil
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to close log file: %v\n", err)
+		if err := l.file.Close(); err != nil {
+			return fmt.Errorf("failed to close previous log file: %w", err)
 		}
+		l.file = nil
 	}
 
 	// Create filename based on current date
