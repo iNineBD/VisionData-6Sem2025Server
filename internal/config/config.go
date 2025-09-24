@@ -12,10 +12,12 @@ import (
 
 // App - a struct that holds a redis client
 type App struct {
+
 	Redis     *redis.RedisInternal
 	ES        *elsearch.Client
 	Logger    *logger.Logger
 	SqlServer *sqlserver.Internal
+
 	// Mongo *mongo.MongoInternal
 }
 

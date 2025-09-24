@@ -53,4 +53,6 @@ RUN chmod 777 /app/logs
 
 # Comando de execução (como root para resolver permissões)
 USER root
+
 ENTRYPOINT ["/app/vision-data"]
+
