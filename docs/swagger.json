@@ -1,0 +1,346 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "API REST para aplicação VisionData com recursos de autenticação, rate limiting e monitoramento.",
+        "title": "VisionData API",
+        "termsOfService": "http://swagger.io/terms/",
+        "contact": {
+            "name": "Inine",
+            "email": "https://github.com/iNineBD"
+        },
+        "license": {
+            "name": "Apache 2.0",
+            "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+        },
+        "version": "1.0"
+    },
+    "host": "localhost:8080",
+    "basePath": "/",
+    "paths": {
+        "/healthcheck": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Verifica a saúde do serviço. Endpoint protegido com autenticação e rate limiting.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "health"
+                ],
+                "summary": "Health Check",
+                "responses": {
+                    "200": {
+                        "description": "Status do serviço",
+                        "schema": {
+                            "$ref": "#/definitions/dto.HealthResponse"
+                        },
+                        "headers": {
+                            "X-RateLimit-Limit": {
+                                "type": "string",
+                                "description": "Limite de requests por minuto"
+                            },
+                            "X-RateLimit-Remaining": {
+                                "type": "string",
+                                "description": "Requests restantes no período"
+                            },
+                            "X-RateLimit-Reset": {
+                                "type": "string",
+                                "description": "Timestamp do reset do rate limit"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized - Token inválido",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AuthErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - Sem permissão",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Rate limit excedido",
+                        "schema": {
+                            "$ref": "#/definitions/dto.RateLimitErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/metrics/tickets": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retorna métricas agregadas dos tickets por categoria, prioridade, canal e tag",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "metrics"
+                ],
+                "summary": "Métricas de Tickets",
+                "responses": {
+                    "200": {
+                        "description": "Tickets metrics retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.TicketsMetricsResponse"
+                        },
+                        "headers": {
+                            "X-RateLimit-Limit": {
+                                "type": "string",
+                                "description": "Requests per minute limit"
+                            },
+                            "X-RateLimit-Remaining": {
+                                "type": "string",
+                                "description": "Remaining requests in the period"
+                            },
+                            "X-RateLimit-Reset": {
+                                "type": "string",
+                                "description": "Rate limit reset timestamp"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized - Invalid token",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AuthErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - No permission",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Rate limit exceeded",
+                        "schema": {
+                            "$ref": "#/definitions/dto.RateLimitErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "dto.AuthErrorResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer",
+                    "example": 401
+                },
+                "error": {
+                    "type": "string",
+                    "example": "unauthorized"
+                },
+                "login_url": {
+                    "type": "string",
+                    "example": "/auth/login"
+                },
+                "message": {
+                    "type": "string",
+                    "example": "Token de autorização inválido ou expirado"
+                },
+                "request_id": {
+                    "type": "string"
+                },
+                "success": {
+                    "type": "boolean"
+                },
+                "timestamp": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer"
+                },
+                "details": {},
+                "error": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "request_id": {
+                    "type": "string"
+                },
+                "success": {
+                    "type": "boolean"
+                },
+                "timestamp": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.HealthResponse": {
+            "type": "object",
+            "properties": {
+                "checks": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "request_id": {
+                    "type": "string"
+                },
+                "service": {
+                    "type": "string",
+                    "example": "VisionData API"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "OK"
+                },
+                "success": {
+                    "type": "boolean"
+                },
+                "timestamp": {
+                    "type": "string"
+                },
+                "uptime": {
+                    "type": "string",
+                    "example": "1h30m45s"
+                },
+                "version": {
+                    "type": "string",
+                    "example": "1.0.0"
+                }
+            }
+        },
+        "dto.MetricValue": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.RateLimitErrorResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer",
+                    "example": 429
+                },
+                "error": {
+                    "type": "string",
+                    "example": "rate_limit_exceeded"
+                },
+                "limit": {
+                    "type": "integer",
+                    "example": 100
+                },
+                "message": {
+                    "type": "string",
+                    "example": "Limite de requisições excedido"
+                },
+                "remaining": {
+                    "type": "integer",
+                    "example": 0
+                },
+                "request_id": {
+                    "type": "string"
+                },
+                "reset_time": {
+                    "type": "string",
+                    "example": "2024-01-01T12:01:00Z"
+                },
+                "retry_after": {
+                    "type": "string",
+                    "example": "60s"
+                },
+                "success": {
+                    "type": "boolean"
+                },
+                "timestamp": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.TicketsMetricsResponse": {
+            "type": "object",
+            "properties": {
+                "metrics": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.TypeMetric"
+                    }
+                },
+                "totalTickets": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.TypeMetric": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "values": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.MetricValue"
+                    }
+                }
+            }
+        }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "description": "Type \"Bearer\" followed by a space and JWT token.",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        }
+    }
+}
