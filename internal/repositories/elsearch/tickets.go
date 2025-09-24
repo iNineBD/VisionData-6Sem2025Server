@@ -32,7 +32,7 @@ func (es *Client) SearchTicketsBySomeWord(ctx context.Context, params dto.Search
 	// Converter query para JSON
 	queryJSON, err := json.Marshal(searchQuery)
 	if err != nil {
-		return nil, fmt.Errorf("erro ao serializar query: %v", err)
+		return nil, fmt.Errorf("error serializing query: %v", err)
 	}
 
 	// Executar a busca
@@ -43,7 +43,7 @@ func (es *Client) SearchTicketsBySomeWord(ctx context.Context, params dto.Search
 
 	res, err := req.Do(ctx, es.ES)
 	if err != nil {
-		return nil, fmt.Errorf("erro na execução da busca: %v", err)
+		return nil, fmt.Errorf("error executing search: %v", err)
 	}
 	defer func() {
 		if err := res.Body.Close(); err != nil {
@@ -53,19 +53,19 @@ func (es *Client) SearchTicketsBySomeWord(ctx context.Context, params dto.Search
 
 	if res.IsError() {
 		body, _ := io.ReadAll(res.Body)
-		return nil, fmt.Errorf("erro na busca: %s - %s", res.Status(), string(body))
+		return nil, fmt.Errorf("search error: %s - %s", res.Status(), string(body))
 	}
 
 	// Ler resposta
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
-		return nil, fmt.Errorf("erro ao ler resposta: %v", err)
+		return nil, fmt.Errorf("error reading response: %v", err)
 	}
 
 	// Parse da resposta
 	var esResponse dto.ESResponse
 	if err := json.Unmarshal(body, &esResponse); err != nil {
-		return nil, fmt.Errorf("erro ao deserializar resposta: %v", err)
+		return nil, fmt.Errorf("error deserializing response: %v", err)
 	}
 
 	// Processar resultados
@@ -73,7 +73,7 @@ func (es *Client) SearchTicketsBySomeWord(ctx context.Context, params dto.Search
 	for _, hit := range esResponse.Hits.Hits {
 		var ticket map[string]interface{}
 		if err := json.Unmarshal(hit.Source, &ticket); err != nil {
-			log.Printf("Erro ao deserializar ticket: %v", err)
+			log.Printf("Error deserializing ticket: %v", err)
 			continue
 		}
 		tickets = append(tickets, ticket)
@@ -115,7 +115,7 @@ func (es *Client) SearchTicketByID(ctx context.Context, ticketID string) (*map[s
 
 	queryJSON, err := json.Marshal(query)
 	if err != nil {
-		return nil, fmt.Errorf("erro ao serializar query: %v", err)
+		return nil, fmt.Errorf("error serializing query: %v", err)
 	}
 
 	req := esapi.SearchRequest{
@@ -125,7 +125,7 @@ func (es *Client) SearchTicketByID(ctx context.Context, ticketID string) (*map[s
 
 	res, err := req.Do(ctx, es.ES)
 	if err != nil {
-		return nil, fmt.Errorf("erro na execução da busca: %v", err)
+		return nil, fmt.Errorf("error executing search: %v", err)
 	}
 	defer func() {
 		if err := res.Body.Close(); err != nil {
@@ -135,26 +135,26 @@ func (es *Client) SearchTicketByID(ctx context.Context, ticketID string) (*map[s
 
 	if res.IsError() {
 		body, _ := io.ReadAll(res.Body)
-		return nil, fmt.Errorf("erro na busca: %s - %s", res.Status(), string(body))
+		return nil, fmt.Errorf("search error: %s - %s", res.Status(), string(body))
 	}
 
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
-		return nil, fmt.Errorf("erro ao ler resposta: %v", err)
+		return nil, fmt.Errorf("error reading response: %v", err)
 	}
 
 	var esResponse dto.ESResponse
 	if err := json.Unmarshal(body, &esResponse); err != nil {
-		return nil, fmt.Errorf("erro ao deserializar resposta: %v", err)
+		return nil, fmt.Errorf("error deserializing response: %v", err)
 	}
 
 	if len(esResponse.Hits.Hits) == 0 {
-		return nil, nil // Não encontrado
+		return nil, nil // Not found
 	}
 
 	var ticket map[string]interface{}
 	if err := json.Unmarshal(esResponse.Hits.Hits[0].Source, &ticket); err != nil {
-		return nil, fmt.Errorf("erro ao deserializar ticket: %v", err)
+		return nil, fmt.Errorf("error deserializing ticket: %v", err)
 	}
 
 	return &ticket, nil
