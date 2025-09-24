@@ -160,4 +160,5 @@ fabric.properties
 
 logs/
 *.log
+
 .env

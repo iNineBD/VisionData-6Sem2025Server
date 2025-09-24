@@ -3,18 +3,17 @@ name: CI-Server
 on:
   pull_request:
     branches:
-      - 'API/**'
+      - 'API-**'
       - develop
-      - 'sprint/**'
+      - 'sprint-**'
       - main
-      - prod
   push:
     branches:
-      - 'API/**'
+      - 'API-**'
       - develop
-      - 'sprint/**'
+      - 'sprint-**'
       - main
-      - prod
+
 
 permissions:
   contents: read
@@ -59,7 +58,7 @@ jobs:
         run: go test ./internal/service/... -race -cover -coverprofile=coverage.out
 
       - name: Go Tidy
-        run: 
+        run: go mod tidy -v
 
       - name: Build
         run: go build -o visiondata ./cmd/api/main.go

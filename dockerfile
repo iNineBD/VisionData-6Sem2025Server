@@ -19,7 +19,7 @@ RUN go mod download && \
 
 # Build da aplicação com otimizações
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
-    -ldflags='-w -s -extldflags "-static"' \    
+    -ldflags='-w -s -extldflags "-static"' \
     -a -installsuffix cgo \
     -o vision-data ./cmd/api/main.go
 
@@ -53,4 +53,6 @@ RUN chmod 777 /app/logs
 
 # Comando de execução (como root para resolver permissões)
 USER root
+
 ENTRYPOINT ["/app/vision-data"]
+

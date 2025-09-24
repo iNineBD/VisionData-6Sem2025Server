@@ -19,6 +19,9 @@ func InitiateRoutes(engine *gin.Engine, cfg *config.App) {
 	healthGroup := engine.Group("/healthcheck", middleware.Auth())
 	healthGroup.GET("/", healthcheck.Health(cfg))
 
+	// Inicializar rotas de métricas
+	SetupMetricsRoutes(engine, cfg)
+
 	ticketsGroup := engine.Group("/tickets")
 	ticketsGroup.GET("/:id", tickets.SearchTicketByID(cfg))
 	ticketsGroup.GET("/query", tickets.GetByWord(cfg))
