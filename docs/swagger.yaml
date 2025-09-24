@@ -112,7 +112,13 @@ definitions:
         example: 1.0.0
         type: string
     type: object
-<<<<<<< HEAD
+  dto.MetricValue:
+    properties:
+      name:
+        type: string
+      value:
+        type: integer
+    type: object
   dto.PaginatedResponse:
     properties:
       data: {}
@@ -158,14 +164,6 @@ definitions:
         type: integer
       name:
         type: string
-=======
-  dto.MetricValue:
-    properties:
-      name:
-        type: string
-      value:
-        type: integer
->>>>>>> 3bc4b2e252c562d0c164b1293693dc10c9f23e52
     type: object
   dto.RateLimitErrorResponse:
     properties:
@@ -197,7 +195,6 @@ definitions:
       timestamp:
         type: string
     type: object
-<<<<<<< HEAD
   dto.SLAMetrics:
     properties:
       first_response_sla_breached:
@@ -255,7 +252,7 @@ definitions:
         type: string
       title:
         type: string
-=======
+    type: object
   dto.TicketsMetricsResponse:
     properties:
       metrics:
@@ -273,7 +270,6 @@ definitions:
         items:
           $ref: '#/definitions/dto.MetricValue'
         type: array
->>>>>>> 3bc4b2e252c562d0c164b1293693dc10c9f23e52
     type: object
 host: localhost:8080
 info:
@@ -337,35 +333,16 @@ paths:
       summary: Health Check
       tags:
       - health
-<<<<<<< HEAD
-  /tickets/{id}:
-    get:
-      consumes:
-      - application/json
-      description: Returns a single ticket matching the provided ID
-      parameters:
-      - description: Ticket ID
-        in: path
-        name: id
-        required: true
-        type: string
-=======
   /metrics/tickets:
     get:
       consumes:
       - application/json
       description: Retorna métricas agregadas dos tickets por categoria, prioridade,
         canal e tag
->>>>>>> 3bc4b2e252c562d0c164b1293693dc10c9f23e52
       produces:
       - application/json
       responses:
         "200":
-<<<<<<< HEAD
-          description: OK
-          schema:
-            $ref: '#/definitions/dto.Ticket'
-=======
           description: Tickets metrics retrieved successfully
           headers:
             X-RateLimit-Limit:
@@ -379,17 +356,10 @@ paths:
               type: string
           schema:
             $ref: '#/definitions/dto.TicketsMetricsResponse'
->>>>>>> 3bc4b2e252c562d0c164b1293693dc10c9f23e52
         "400":
           description: Bad Request
           schema:
             $ref: '#/definitions/dto.ErrorResponse'
-<<<<<<< HEAD
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/dto.ErrorResponse'
-=======
         "401":
           description: Unauthorized - Invalid token
           schema:
@@ -402,12 +372,45 @@ paths:
           description: Rate limit exceeded
           schema:
             $ref: '#/definitions/dto.RateLimitErrorResponse'
->>>>>>> 3bc4b2e252c562d0c164b1293693dc10c9f23e52
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/dto.ErrorResponse'
-<<<<<<< HEAD
+      security:
+      - BearerAuth: []
+      summary: Métricas de Tickets
+      tags:
+      - metrics
+  /tickets/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Returns a single ticket matching the provided ID
+      parameters:
+      - description: Ticket ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.Ticket'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
       summary: Get ticket by ID
       tags:
       - tickets
@@ -458,13 +461,6 @@ paths:
       summary: Search tickets by query word
       tags:
       - tickets
-=======
-      security:
-      - BearerAuth: []
-      summary: Métricas de Tickets
-      tags:
-      - metrics
->>>>>>> 3bc4b2e252c562d0c164b1293693dc10c9f23e52
 securityDefinitions:
   BearerAuth:
     description: Type "Bearer" followed by a space and JWT token.

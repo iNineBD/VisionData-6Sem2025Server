@@ -95,11 +95,6 @@ const docTemplate = `{
                 }
             }
         },
-<<<<<<< HEAD
-        "/tickets/query": {
-            "get": {
-                "description": "Returns tickets matching the search query",
-=======
         "/metrics/tickets": {
             "get": {
                 "security": [
@@ -108,7 +103,6 @@ const docTemplate = `{
                     }
                 ],
                 "description": "Retorna métricas agregadas dos tickets por categoria, prioridade, canal e tag",
->>>>>>> 3bc4b2e252c562d0c164b1293693dc10c9f23e52
                 "consumes": [
                     "application/json"
                 ],
@@ -116,7 +110,73 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-<<<<<<< HEAD
+                    "metrics"
+                ],
+                "summary": "Métricas de Tickets",
+                "responses": {
+                    "200": {
+                        "description": "Tickets metrics retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.TicketsMetricsResponse"
+                        },
+                        "headers": {
+                            "X-RateLimit-Limit": {
+                                "type": "string",
+                                "description": "Requests per minute limit"
+                            },
+                            "X-RateLimit-Remaining": {
+                                "type": "string",
+                                "description": "Remaining requests in the period"
+                            },
+                            "X-RateLimit-Reset": {
+                                "type": "string",
+                                "description": "Rate limit reset timestamp"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized - Invalid token",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AuthErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - No permission",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Rate limit exceeded",
+                        "schema": {
+                            "$ref": "#/definitions/dto.RateLimitErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/tickets/query": {
+            "get": {
+                "description": "Returns tickets matching the search query",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
                     "tickets"
                 ],
                 "summary": "Search tickets by query word",
@@ -164,37 +224,12 @@ const docTemplate = `{
                                     }
                                 }
                             ]
-=======
-                    "metrics"
-                ],
-                "summary": "Métricas de Tickets",
-                "responses": {
-                    "200": {
-                        "description": "Tickets metrics retrieved successfully",
-                        "schema": {
-                            "$ref": "#/definitions/dto.TicketsMetricsResponse"
-                        },
-                        "headers": {
-                            "X-RateLimit-Limit": {
-                                "type": "string",
-                                "description": "Requests per minute limit"
-                            },
-                            "X-RateLimit-Remaining": {
-                                "type": "string",
-                                "description": "Remaining requests in the period"
-                            },
-                            "X-RateLimit-Reset": {
-                                "type": "string",
-                                "description": "Rate limit reset timestamp"
-                            }
->>>>>>> 3bc4b2e252c562d0c164b1293693dc10c9f23e52
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/dto.ErrorResponse"
-<<<<<<< HEAD
                         }
                     },
                     "500": {
@@ -245,26 +280,6 @@ const docTemplate = `{
                         "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/dto.ErrorResponse"
-=======
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized - Invalid token",
-                        "schema": {
-                            "$ref": "#/definitions/dto.AuthErrorResponse"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden - No permission",
-                        "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
-                        }
-                    },
-                    "429": {
-                        "description": "Rate limit exceeded",
-                        "schema": {
-                            "$ref": "#/definitions/dto.RateLimitErrorResponse"
->>>>>>> 3bc4b2e252c562d0c164b1293693dc10c9f23e52
                         }
                     },
                     "500": {
@@ -444,7 +459,17 @@ const docTemplate = `{
                 }
             }
         },
-<<<<<<< HEAD
+        "dto.MetricValue": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "integer"
+                }
+            }
+        },
         "dto.PaginatedResponse": {
             "type": "object",
             "properties": {
@@ -509,16 +534,6 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string"
-=======
-        "dto.MetricValue": {
-            "type": "object",
-            "properties": {
-                "name": {
-                    "type": "string"
-                },
-                "value": {
-                    "type": "integer"
->>>>>>> 3bc4b2e252c562d0c164b1293693dc10c9f23e52
                 }
             }
         },
@@ -564,7 +579,6 @@ const docTemplate = `{
                 }
             }
         },
-<<<<<<< HEAD
         "dto.SLAMetrics": {
             "type": "object",
             "properties": {
@@ -647,7 +661,9 @@ const docTemplate = `{
                 },
                 "title": {
                     "type": "string"
-=======
+                }
+            }
+        },
         "dto.TicketsMetricsResponse": {
             "type": "object",
             "properties": {
@@ -673,7 +689,6 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/dto.MetricValue"
                     }
->>>>>>> 3bc4b2e252c562d0c164b1293693dc10c9f23e52
                 }
             }
         }
