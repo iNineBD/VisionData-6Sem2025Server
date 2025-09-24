@@ -25,6 +25,8 @@ type Config struct {
 
 	// TLS settings
 	InsecureSkipVerify bool
+
+	IndexName string
 }
 
 type Client struct {

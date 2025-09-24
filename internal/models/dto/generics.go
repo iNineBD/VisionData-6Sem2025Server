@@ -48,6 +48,13 @@ type Pagination struct {
 	HasPrev      bool  `json:"has_prev" example:"false"`
 }
 
+// Parâmetros de busca
+type SearchParams struct {
+	Query    string `form:"q" binding:"required"`
+	Page     int    `form:"page"`
+	PageSize int    `form:"page_size"`
+}
+
 // HealthResponse representa a resposta do healthcheck
 type HealthResponse struct {
 	BaseResponse
