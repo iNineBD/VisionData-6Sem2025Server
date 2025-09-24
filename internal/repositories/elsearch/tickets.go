@@ -45,7 +45,11 @@ func (es *Client) SearchTicketsBySomeWord(ctx context.Context, params dto.Search
 	if err != nil {
 		return nil, fmt.Errorf("erro na execução da busca: %v", err)
 	}
-	defer res.Body.Close()
+	defer func() {
+		if err := res.Body.Close(); err != nil {
+			log.Printf("error closing response body: %v", err)
+		}
+	}()
 
 	if res.IsError() {
 		body, _ := io.ReadAll(res.Body)
@@ -123,7 +127,11 @@ func (es *Client) SearchTicketByID(ctx context.Context, ticketID string) (*map[s
 	if err != nil {
 		return nil, fmt.Errorf("erro na execução da busca: %v", err)
 	}
-	defer res.Body.Close()
+	defer func() {
+		if err := res.Body.Close(); err != nil {
+			log.Printf("error closing response body: %v", err)
+		}
+	}()
 
 	if res.IsError() {
 		body, _ := io.ReadAll(res.Body)
