@@ -88,9 +88,150 @@
                     }
                 }
             }
+        },
+        "/tickets/query": {
+            "get": {
+                "description": "Returns tickets matching the search query",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "tickets"
+                ],
+                "summary": "Search tickets by query word",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Search query",
+                        "name": "q",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "maximum": 100,
+                        "type": "integer",
+                        "default": 50,
+                        "description": "Number of items per page",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/dto.PaginatedResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/dto.Ticket"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/tickets/{id}": {
+            "get": {
+                "description": "Returns a single ticket matching the provided ID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "tickets"
+                ],
+                "summary": "Get ticket by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Ticket ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.Ticket"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
+        "dto.AssignedAgent": {
+            "type": "object",
+            "properties": {
+                "department": {
+                    "type": "integer"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "full_name": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                }
+            }
+        },
         "dto.AuthErrorResponse": {
             "type": "object",
             "properties": {
@@ -119,6 +260,65 @@
                 "timestamp": {
                     "type": "string"
                 }
+            }
+        },
+        "dto.Category": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.Company": {
+            "type": "object",
+            "properties": {
+                "cnpj": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "segment": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.CreatedByUser": {
+            "type": "object",
+            "properties": {
+                "cpf": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "full_name": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_vip": {
+                    "type": "boolean"
+                },
+                "phone": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.Dates": {
+            "type": "object",
+            "properties": {
+                "closed_at": {},
+                "created_at": {},
+                "first_response_at": {}
             }
         },
         "dto.ErrorResponse": {
@@ -181,6 +381,73 @@
                 }
             }
         },
+        "dto.PaginatedResponse": {
+            "type": "object",
+            "properties": {
+                "data": {},
+                "message": {
+                    "type": "string"
+                },
+                "pagination": {
+                    "$ref": "#/definitions/dto.Pagination"
+                },
+                "request_id": {
+                    "type": "string"
+                },
+                "success": {
+                    "type": "boolean"
+                },
+                "timestamp": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.Pagination": {
+            "type": "object",
+            "properties": {
+                "current_page": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "has_next": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "has_prev": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "per_page": {
+                    "type": "integer",
+                    "example": 10
+                },
+                "total_pages": {
+                    "type": "integer",
+                    "example": 5
+                },
+                "total_records": {
+                    "type": "integer",
+                    "example": 50
+                }
+            }
+        },
+        "dto.Product": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
         "dto.RateLimitErrorResponse": {
             "type": "object",
             "properties": {
@@ -219,6 +486,91 @@
                     "type": "boolean"
                 },
                 "timestamp": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.SLAMetrics": {
+            "type": "object",
+            "properties": {
+                "first_response_sla_breached": {
+                    "type": "boolean"
+                },
+                "first_response_time_minutes": {},
+                "resolution_sla_breached": {
+                    "type": "boolean"
+                },
+                "resolution_time_minutes": {}
+            }
+        },
+        "dto.Ticket": {
+            "type": "object",
+            "properties": {
+                "assigned_agent": {
+                    "$ref": "#/definitions/dto.AssignedAgent"
+                },
+                "attachments": {
+                    "type": "array",
+                    "items": {}
+                },
+                "audit_logs": {
+                    "type": "array",
+                    "items": {}
+                },
+                "category": {
+                    "$ref": "#/definitions/dto.Category"
+                },
+                "channel": {
+                    "type": "string"
+                },
+                "company": {
+                    "$ref": "#/definitions/dto.Company"
+                },
+                "created_by_user": {
+                    "$ref": "#/definitions/dto.CreatedByUser"
+                },
+                "current_status": {
+                    "type": "integer"
+                },
+                "dates": {
+                    "$ref": "#/definitions/dto.Dates"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "device": {
+                    "type": "string"
+                },
+                "priority": {
+                    "type": "string"
+                },
+                "product": {
+                    "$ref": "#/definitions/dto.Product"
+                },
+                "search_text": {
+                    "type": "string"
+                },
+                "sla_metrics": {
+                    "$ref": "#/definitions/dto.SLAMetrics"
+                },
+                "sla_plan": {
+                    "type": "integer"
+                },
+                "status_history": {
+                    "type": "array",
+                    "items": {}
+                },
+                "subcategory": {
+                    "$ref": "#/definitions/dto.Category"
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {}
+                },
+                "ticket_id": {
+                    "type": "string"
+                },
+                "title": {
                     "type": "string"
                 }
             }

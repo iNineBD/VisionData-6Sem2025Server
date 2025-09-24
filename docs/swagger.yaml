@@ -1,5 +1,16 @@
 basePath: /
 definitions:
+  dto.AssignedAgent:
+    properties:
+      department:
+        type: integer
+      email:
+        type: string
+      full_name:
+        type: string
+      id:
+        type: integer
+    type: object
   dto.AuthErrorResponse:
     properties:
       code:
@@ -20,6 +31,45 @@ definitions:
         type: boolean
       timestamp:
         type: string
+    type: object
+  dto.Category:
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
+  dto.Company:
+    properties:
+      cnpj:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      segment:
+        type: string
+    type: object
+  dto.CreatedByUser:
+    properties:
+      cpf:
+        type: string
+      email:
+        type: string
+      full_name:
+        type: string
+      id:
+        type: integer
+      is_vip:
+        type: boolean
+      phone:
+        type: string
+    type: object
+  dto.Dates:
+    properties:
+      closed_at: {}
+      created_at: {}
+      first_response_at: {}
     type: object
   dto.ErrorResponse:
     properties:
@@ -62,6 +112,52 @@ definitions:
         example: 1.0.0
         type: string
     type: object
+  dto.PaginatedResponse:
+    properties:
+      data: {}
+      message:
+        type: string
+      pagination:
+        $ref: '#/definitions/dto.Pagination'
+      request_id:
+        type: string
+      success:
+        type: boolean
+      timestamp:
+        type: string
+    type: object
+  dto.Pagination:
+    properties:
+      current_page:
+        example: 1
+        type: integer
+      has_next:
+        example: true
+        type: boolean
+      has_prev:
+        example: false
+        type: boolean
+      per_page:
+        example: 10
+        type: integer
+      total_pages:
+        example: 5
+        type: integer
+      total_records:
+        example: 50
+        type: integer
+    type: object
+  dto.Product:
+    properties:
+      code:
+        type: integer
+      description:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
   dto.RateLimitErrorResponse:
     properties:
       code:
@@ -90,6 +186,64 @@ definitions:
       success:
         type: boolean
       timestamp:
+        type: string
+    type: object
+  dto.SLAMetrics:
+    properties:
+      first_response_sla_breached:
+        type: boolean
+      first_response_time_minutes: {}
+      resolution_sla_breached:
+        type: boolean
+      resolution_time_minutes: {}
+    type: object
+  dto.Ticket:
+    properties:
+      assigned_agent:
+        $ref: '#/definitions/dto.AssignedAgent'
+      attachments:
+        items: {}
+        type: array
+      audit_logs:
+        items: {}
+        type: array
+      category:
+        $ref: '#/definitions/dto.Category'
+      channel:
+        type: string
+      company:
+        $ref: '#/definitions/dto.Company'
+      created_by_user:
+        $ref: '#/definitions/dto.CreatedByUser'
+      current_status:
+        type: integer
+      dates:
+        $ref: '#/definitions/dto.Dates'
+      description:
+        type: string
+      device:
+        type: string
+      priority:
+        type: string
+      product:
+        $ref: '#/definitions/dto.Product'
+      search_text:
+        type: string
+      sla_metrics:
+        $ref: '#/definitions/dto.SLAMetrics'
+      sla_plan:
+        type: integer
+      status_history:
+        items: {}
+        type: array
+      subcategory:
+        $ref: '#/definitions/dto.Category'
+      tags:
+        items: {}
+        type: array
+      ticket_id:
+        type: string
+      title:
         type: string
     type: object
 host: localhost:8080
@@ -154,6 +308,86 @@ paths:
       summary: Health Check
       tags:
       - health
+  /tickets/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Returns a single ticket matching the provided ID
+      parameters:
+      - description: Ticket ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.Ticket'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Get ticket by ID
+      tags:
+      - tickets
+  /tickets/query:
+    get:
+      consumes:
+      - application/json
+      description: Returns tickets matching the search query
+      parameters:
+      - description: Search query
+        in: query
+        name: q
+        required: true
+        type: string
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 50
+        description: Number of items per page
+        in: query
+        maximum: 100
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dto.PaginatedResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dto.Ticket'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Search tickets by query word
+      tags:
+      - tickets
 securityDefinitions:
   BearerAuth:
     description: Type "Bearer" followed by a space and JWT token.
