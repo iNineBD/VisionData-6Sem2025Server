@@ -162,3 +162,6 @@ logs/
 *.log
 
 .env
+
+docs/
+docs
