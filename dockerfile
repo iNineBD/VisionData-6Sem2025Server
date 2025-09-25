@@ -10,18 +10,26 @@ WORKDIR /app
 # Copiar arquivos de dependências
 COPY go.mod go.sum .env ./
 
+
 # Copiar código fonte
 COPY . .
+
+# Instale o swag dentro do container
+RUN go install github.com/swaggo/swag/cmd/swag@latest
 
 # Download e verificação das dependências
 RUN go mod download && \
     go mod verify
+    
+# Gere a documentação Swagger antes de buildar/rodar
+RUN $(go env GOPATH)/bin/swag init -g cmd/api/main.go
 
 # Build da aplicação com otimizações
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
     -ldflags='-w -s -extldflags "-static"' \
     -a -installsuffix cgo \
     -o vision-data ./cmd/api/main.go
+
 
 # Stage final - usar alpine ao invés de scratch para debugging
 FROM alpine:3.19

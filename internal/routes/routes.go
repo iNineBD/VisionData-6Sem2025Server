@@ -2,8 +2,8 @@ package routes
 
 import (
 	"orderstreamrest/internal/config"
-	"orderstreamrest/internal/middleware"
 	"orderstreamrest/internal/service/healthcheck"
+	"orderstreamrest/internal/service/metrics"
 	"orderstreamrest/internal/service/tickets"
 
 	"github.com/gin-gonic/gin"
@@ -16,11 +16,11 @@ func InitiateRoutes(engine *gin.Engine, cfg *config.App) {
 
 	engine.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
-	healthGroup := engine.Group("/healthcheck", middleware.Auth())
+	healthGroup := engine.Group("/healthcheck")
 	healthGroup.GET("/", healthcheck.Health(cfg))
 
-	// Inicializar rotas de métricas
-	SetupMetricsRoutes(engine, cfg)
+	metricsGroup := engine.Group("/metrics")
+	metricsGroup.GET("/tickets", metrics.GetTicketsMetrics(cfg))
 
 	ticketsGroup := engine.Group("/tickets")
 	ticketsGroup.GET("/:id", tickets.SearchTicketByID(cfg))

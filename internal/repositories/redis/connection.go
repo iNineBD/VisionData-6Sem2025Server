@@ -3,7 +3,6 @@ package redis
 import (
 	"context"
 	"fmt"
-	"os"
 	"sync"
 
 	"github.com/redis/go-redis/v9"
@@ -24,11 +23,20 @@ func NewRedisInternal() (*RedisInternal, error) {
 	// Create a new Redis client
 
 	rdb := redis.NewClient(&redis.Options{
-		Addr: fmt.Sprintf("%s:%s", os.Getenv("REDIS_HOST"), os.Getenv("REDIS_PORT")),
+		Addr: "redis:6379",
 	})
 
 	if _, err := rdb.Ping(context.Background()).Result(); err != nil {
-		return nil, fmt.Errorf("connecting to Redis: %w", err)
+
+		rdb = redis.NewClient(&redis.Options{
+			Addr:     "localhost:6379",
+			Password: "", // no password set
+			DB:       0,  // use default DB
+		})
+
+		if _, err := rdb.Ping(context.Background()).Result(); err != nil {
+			return nil, fmt.Errorf("connecting to Redis: %w", err)
+		}
 	}
 
 	return &RedisInternal{
