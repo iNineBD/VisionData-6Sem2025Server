@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	defaultMaxRequests = 15
+	defaultMaxRequests = 1500
 	rateLimitWindow    = 60 * time.Second
 )
 
