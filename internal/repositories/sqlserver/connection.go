@@ -55,7 +55,7 @@ func NewSQLServerInternal() (*Internal, error) {
 // Retorna o total de tickets
 func (s *Internal) GetTotalTickets() (int64, error) {
 	var total int64
-	err := s.db.Table("DW.Fact_Tickets").
+	err := s.db.Table("dbo.Fact_Tickets").
 		Select("SUM(QtTickets)").
 		Scan(&total).Error
 	return total, err
@@ -70,9 +70,9 @@ func (s *Internal) GetTicketsByCategory() ([]struct {
 		entities.Dim_Categories
 		Total int64
 	}
-	err := s.db.Table("DW.Fact_Tickets ft").
+	err := s.db.Table("dbo.Fact_Tickets ft").
 		Select("dc.CategoryName, SUM(ft.QtTickets) as Total").
-		Joins("INNER JOIN DW.Dim_Categories dc ON ft.CategoryKey = dc.CategoryKey").
+		Joins("INNER JOIN dbo.Dim_Categories dc ON ft.CategoryKey = dc.CategoryKey").
 		Group("dc.CategoryName").
 		Order("Total DESC").
 		Scan(&results).Error
@@ -88,9 +88,9 @@ func (s *Internal) GetTicketsByPriority() ([]struct {
 		entities.Dim_Priorities
 		Total int64
 	}
-	err := s.db.Table("DW.Fact_Tickets ft").
+	err := s.db.Table("dbo.Fact_Tickets ft").
 		Select("dp.Name, SUM(ft.QtTickets) as Total").
-		Joins("INNER JOIN DW.Dim_Priorities dp ON ft.PriorityKey = dp.PriorityKey").
+		Joins("INNER JOIN dbo.Dim_Priorities dp ON ft.PriorityKey = dp.PriorityKey").
 		Group("dp.Name").
 		Order("Total DESC").
 		Scan(&results).Error
@@ -106,9 +106,9 @@ func (s *Internal) GetTicketsByChannel() ([]struct {
 		entities.Dim_Channel
 		Total int64
 	}
-	err := s.db.Table("DW.Fact_Tickets ft").
+	err := s.db.Table("dbo.Fact_Tickets ft").
 		Select("dc.ChannelName, SUM(ft.QtTickets) as Total").
-		Joins("INNER JOIN DW.Dim_Channel dc ON ft.ChannelKey = dc.ChannelKey").
+		Joins("INNER JOIN dbo.Dim_Channel dc ON ft.ChannelKey = dc.ChannelKey").
 		Group("dc.ChannelName").
 		Order("Total DESC").
 		Scan(&results).Error
@@ -124,9 +124,9 @@ func (s *Internal) GetTicketsByTag() ([]struct {
 		entities.Dim_Tags
 		Total int64
 	}
-	err := s.db.Table("DW.Fact_Tickets ft").
+	err := s.db.Table("dbo.Fact_Tickets ft").
 		Select("dt.Name, SUM(ft.QtTickets) as Total").
-		Joins("INNER JOIN DW.Dim_Tags dt ON ft.TagKey = dt.TagKey").
+		Joins("INNER JOIN dbo.Dim_Tags dt ON ft.TagKey = dt.TagKey").
 		Group("dt.Name").
 		Order("Total DESC").
 		Scan(&results).Error
@@ -142,9 +142,9 @@ func (s *Internal) GetTicketsByDepartment() ([]struct {
 		entities.Dim_Companies
 		Total int64
 	}
-	err := s.db.Table("DW.Fact_Tickets ft").
+	err := s.db.Table("dbo.Fact_Tickets ft").
 		Select("dc.Name, SUM(ft.QtTickets) as Total").
-		Joins("INNER JOIN DW.Dim_Companies dc ON ft.CompanyKey = dc.CompanyKey").
+		Joins("INNER JOIN dbo.Dim_Companies dc ON ft.CompanyKey = dc.CompanyKey").
 		Group("dc.Name").
 		Order("Total DESC").
 		Scan(&results).Error

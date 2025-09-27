@@ -89,7 +89,7 @@ func (cfg *App) newClientES() error {
 		Timeout:            5 * time.Second,
 		EnableLogging:      true,
 		InsecureSkipVerify: true,
-		IndexName:          "support_tickets_teste",
+		IndexName:          "support_tickets",
 	})
 	if err != nil {
 		return errors.New("creating elastic client: " + err.Error())
