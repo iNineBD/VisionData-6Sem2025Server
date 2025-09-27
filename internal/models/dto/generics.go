@@ -50,7 +50,7 @@ type Pagination struct {
 
 // Parâmetros de busca
 type SearchParams struct {
-	Query    string `form:"q" binding:"required"`
+	Query    string `form:"q"`
 	Page     int    `form:"page"`
 	PageSize int    `form:"page_size"`
 }

@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"orderstreamrest/internal/config"
 	"orderstreamrest/internal/models/dto"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -17,7 +16,7 @@ import (
 // @Tags         tickets
 // @Accept       json
 // @Produce      json
-// @Param        q     query     string  true  "Search query"
+// @Param        q     		query     string  false  "Search query"
 // @Param        page      query     int     false "Page number" default(1)
 // @Param        page_size query     int     false "Number of items per page" default(50) maximum(100)
 // @Success 	  200 {object} dto.PaginatedResponse{data=[]dto.Ticket}
@@ -34,11 +33,11 @@ func GetByWord(cfg *config.App) gin.HandlerFunc {
 		}
 
 		// Limpar a query
-		params.Query = strings.TrimSpace(params.Query)
-		if params.Query == "" {
-			c.JSON(http.StatusBadRequest, dto.NewErrorResponse(c, http.StatusBadRequest, "Search query 'q' is required", "Error while searching tickets", nil))
-			return
-		}
+		// params.Query = strings.TrimSpace(params.Query)
+		// if params.Query == "" {
+		// 	c.JSON(http.StatusBadRequest, dto.NewErrorResponse(c, http.StatusBadRequest, "Search query 'q' is required", "Error while searching tickets", nil))
+		// 	return
+		// }
 
 		// Executar a busca
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
