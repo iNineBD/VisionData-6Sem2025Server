@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"orderstreamrest/internal/config"
 	"orderstreamrest/internal/models/dto"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -66,6 +68,16 @@ func GetTicketsMetrics(cfg *config.App) gin.HandlerFunc {
 		// total de tickets por prioridade
 		ticketsByPriority, err := cfg.SqlServer.GetTicketsByPriority()
 		if err == nil {
+			// Ordena as prioridades: CRÍTICA, ALTA, MÉDIA, BAIXA
+			priorityOrder := map[string]int{
+				"CRÍTICA": 1,
+				"ALTA":    2,
+				"MÉDIA":   3,
+				"BAIXA":   4,
+			}
+			sort.Slice(ticketsByPriority, func(i, j int) bool {
+				return priorityOrder[strings.ToUpper(ticketsByPriority[i].Name)] < priorityOrder[strings.ToUpper(ticketsByPriority[j].Name)]
+			})
 			var priorityMetrics []dto.MetricValue
 			for _, item := range ticketsByPriority {
 				priorityMetrics = append(priorityMetrics, dto.MetricValue{

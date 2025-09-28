@@ -37,6 +37,7 @@ func (es *Client) buildSearchQuery(query string, from, size int) map[string]inte
 							"product.name",
 							"product.description",
 							"tags",
+							"ticket_id",
 						},
 						"type":                 "best_fields",
 						"fuzziness":            "AUTO",
