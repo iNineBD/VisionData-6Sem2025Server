@@ -105,12 +105,33 @@ jobs:
       - name: Deploy Produção via Docker
         run: |
           echo "Deploying Docker image: ${{ env.IMAGE_NAME }}:${{ env.TAG }}"
+
+          # Pull da nova imagem
           docker pull ${{ env.IMAGE_NAME }}:${{ env.TAG }}
+
+          # Parar e remover container antigo
           docker stop visiondata || true
           docker rm visiondata || true
-          docker run -d --name visiondata \
+
+          # Criar diretórios no host se não existirem
+          mkdir -p /home/dev/visiondata/logs
+          mkdir -p /home/dev/visiondata/certs
+
+          # Rodar novo container com todas as configurações
+          docker run -d \
+            --name visiondata-etl \
             -p 80:8080 \
             -p 443:8443 \
             --restart unless-stopped \
+            --env-file /home/dev/visiondata/.env \
+            -v /home/dev/visiondata/certs:/app/certs:ro \
+            -v /home/dev/visiondata/logs:/app/logs:rw \
+            -e LOG_DIR=/app/logs \
+            -e DEBUG=true \
             ${{ env.IMAGE_NAME }}:${{ env.TAG }}
+
+          # Verificar se o container está rodando
+          docker ps | grep visiondata
+          docker logs visiondata --tail 10
+
           echo "Deploy completed successfully!"
