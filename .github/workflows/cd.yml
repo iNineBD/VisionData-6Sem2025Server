@@ -10,7 +10,7 @@ on:
 
 env:
   DOCKERHUB_ENABLED: 'true'
-  IMAGE_NAME: inineapi/visiondata6sem
+  IMAGE_NAME: inineapi/visiondata-server
   TAG: ${{ github.sha }}
 
 jobs:
@@ -58,13 +58,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      # - name: Baixa binário
-      #   uses: actions/download-artifact@v4
-      #   with:
-      #     name: visiondata
-      #     run-id: ${{ github.event.workflow_run.id }}
-      #     path: ./dist
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
