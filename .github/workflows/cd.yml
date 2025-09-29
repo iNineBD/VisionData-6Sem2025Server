@@ -1,0 +1,137 @@
+name: CD-Server
+
+on:
+  workflow_run:
+    workflows: ["CI-Server"]
+    types:
+      - completed
+    branches:
+      - main
+
+env:
+  DOCKERHUB_ENABLED: 'true'
+  IMAGE_NAME: inineapi/visiondata-server
+  TAG: ${{ github.sha }}
+
+jobs:
+  gather-artifacts:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - name: Baixa binário
+        uses: actions/download-artifact@v4
+        with:
+          name: visiondata
+          run-id: ${{ github.event.workflow_run.id }}
+          path: ./dist
+
+      - name: Baixa cobertura
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage
+          run-id: ${{ github.event.workflow_run.id }}
+          path: ./dist
+
+      - name: SonarQube Quality Gate check
+        uses: sonarsource/sonarqube-quality-gate-action@master
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+
+      - name: List artifacts
+        run: ls -R ./dist
+
+      - name: Compacta todos (bundle)
+        run: |
+          tar -czf pack-visiondata-server.tar.gz -C dist .
+
+      - name: Upload bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: pack-visiondata-server
+          path: pack-visiondata-server.tar.gz
+
+  docker-build-push:
+    runs-on: ubuntu-latest
+    needs: [gather-artifacts]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAME }}:latest
+            ${{ env.IMAGE_NAME }}:${{ env.TAG }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy-staging:
+    runs-on: ubuntu-latest
+    needs: [docker-build-push]
+    environment:
+      name: staging
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: pack-visiondata-server
+          path: .
+      - name: Deploy Staging
+        run: |
+          echo "Deploy Staging with Docker image: ${{ env.IMAGE_NAME }}:${{ env.TAG }}"
+          tar -xzf pack-visiondata-server.tar.gz
+
+  deploy-prod:
+    runs-on: self-hosted
+    needs: [docker-build-push]
+    environment:
+      name: production
+      url: https://visiondata.ininetech.com.br
+    steps:
+      - name: Deploy Produção via Docker
+        run: |
+          echo "Deploying Docker image: ${{ env.IMAGE_NAME }}:${{ env.TAG }}"
+
+          # Pull da nova imagem
+          docker pull ${{ env.IMAGE_NAME }}:${{ env.TAG }}
+
+          # Parar e remover container antigo (NOME CORRETO)
+          docker stop visiondata-server || true
+          docker rm visiondata-server || true
+
+          # Criar diretórios no host se não existirem
+          mkdir -p /home/dev/visiondata-server/logs
+          mkdir -p /home/dev/visiondata-server/certs
+
+          # Rodar novo container com todas as configurações (NOME CONSISTENTE)
+          docker run -d \
+            --name visiondata-server \
+            -p 80:8080 \
+            -p 443:8443 \
+            --restart unless-stopped \
+            --env-file /home/dev/visiondata-server/.env \
+            -v /home/dev/visiondata-server/certs:/app/certs:ro \
+            -v /home/dev/visiondata-server/logs:/app/logs:rw \
+            -e LOG_DIR=/app/logs \
+            -e DEBUG=true \
+            ${{ env.IMAGE_NAME }}:${{ env.TAG }}
+
+          # Verificar se o container está rodando (NOME CORRETO)
+          docker ps | grep visiondata-server
+          docker logs visiondata-server --tail 10
+
+          echo "Server deploy completed successfully!"

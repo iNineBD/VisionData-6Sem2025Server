@@ -1,0 +1,48 @@
+services:
+  vision-data-api:
+    build:
+      context: .
+      dockerfile: dockerfile
+    container_name: vision-data-api
+    ports:
+      - "8080:8080"
+      - "8443:8443"
+    env_file:
+      - .env
+    depends_on:
+      - redis
+    volumes:
+      - ./certs:/app/certs:ro
+      - ./logs:/app/logs:rw
+      # Garantir que o diretório de logs existe no host
+      - type: bind
+        source: ./logs
+        target: /app/logs
+        bind:
+          create_host_path: true
+    networks:
+      - vision-network
+    # Adicionar variáveis de ambiente para debug
+    environment:
+      - LOG_DIR=/app/logs
+      - DEBUG=true
+
+  redis:
+    image: redis:7.4-alpine
+    container_name: vision-data-redis
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "no"]
+    volumes:
+      - redis_data:/data
+    networks:
+      - vision-network
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+    driver: local
+
+networks:
+  vision-network:
+    driver: bridge
