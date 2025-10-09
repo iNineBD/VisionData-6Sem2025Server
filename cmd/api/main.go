@@ -12,7 +12,6 @@ import (
 	_ "orderstreamrest/docs"
 
 	"github.com/gin-gonic/gin"
-	"github.com/joho/godotenv"
 )
 
 // @title           VisionData API
@@ -42,14 +41,6 @@ import (
 // @response BadRequest {object} dto.ErrorResponse "Requisição inválida"
 
 func main() {
-	// Carregar variáveis de ambiente
-	envPath := "/app/.env"
-	if _, err := os.Stat(envPath); os.IsNotExist(err) {
-		envPath = "../../.env"
-	}
-	if err := godotenv.Load(envPath); err != nil {
-		log.Fatalf("Error loading .env file: %v", err)
-	}
 
 	fmt.Printf("Environment: %s\n", os.Getenv("ENVIRONMENT_APP"))
 
@@ -84,7 +75,7 @@ func startServer(engine *gin.Engine, cfg *config.App) {
 
 		if err := engine.RunTLS(":8080", certFile, keyFile); err != nil {
 			cfg.Logger.Fatal(
-				fmt.Sprintf("Error starting TLS server on port 8080: %v", err),
+				"Error starting TLS server on port 8080: ", err,
 			)
 		}
 	} else {
@@ -94,7 +85,7 @@ func startServer(engine *gin.Engine, cfg *config.App) {
 
 		if err := engine.Run(":8080"); err != nil {
 			cfg.Logger.Fatal(
-				fmt.Sprintf("Error starting server on port 8080: %v", err),
+				"Error starting server on port 8080: ", err,
 			)
 		}
 	}
