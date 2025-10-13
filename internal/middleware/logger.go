@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"orderstreamrest/pkg/logger"
 	"strings"
@@ -172,7 +173,7 @@ func LoggerMiddleware(esLogger *logger.ElasticsearchLogger, config ...Middleware
 
 		// Build query string
 		if raw != "" {
-			path = path + "?" + raw
+			path = fmt.Sprintf("%s?%s", path, raw)
 		}
 
 		// Collect headers (excluding sensitive ones)

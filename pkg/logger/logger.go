@@ -277,7 +277,7 @@ func (l *ElasticsearchLogger) sendBatch(entries []LogEntry) error {
 	if err != nil {
 		return fmt.Errorf("failed to send bulk request: %w", err)
 	}
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 
 	if res.IsError() {
 		body, _ := io.ReadAll(res.Body)
@@ -289,7 +289,7 @@ func (l *ElasticsearchLogger) sendBatch(entries []LogEntry) error {
 
 // getIndexName generates index name with date suffix for daily rotation
 func (l *ElasticsearchLogger) getIndexName() string {
-	return fmt.Sprintf("%s", l.config.IndexName)
+	return fmt.Sprint(l.config.IndexName)
 }
 
 // shouldLog checks if the log level should be processed
