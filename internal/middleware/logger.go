@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"orderstreamrest/pkg/logger"
 	"strings"
@@ -119,8 +118,6 @@ func LoggerMiddleware(esLogger *logger.ElasticsearchLogger, config ...Middleware
 		}
 
 		start := time.Now()
-		path := c.Request.URL.Path
-		raw := c.Request.URL.RawQuery
 
 		// Generate or extract request ID
 		requestID := c.GetHeader(cfg.RequestIDHeader)
@@ -172,9 +169,9 @@ func LoggerMiddleware(esLogger *logger.ElasticsearchLogger, config ...Middleware
 		}
 
 		// Build query string
-		if raw != "" {
-			path = fmt.Sprintf("%s?%s", path, raw)
-		}
+		// if raw != "" {
+		// 	path = fmt.Sprintf("%s?%s", path, raw)
+		// }
 
 		// Collect headers (excluding sensitive ones)
 		headers := make(map[string]string)

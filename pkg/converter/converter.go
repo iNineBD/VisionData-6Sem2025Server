@@ -145,7 +145,7 @@ func (tc *ThesaurusConverter) writeSynonymLine(writer *bufio.Writer, word string
 
 	if len(cleaned) >= 2 {
 		line := strings.Join(cleaned, ", ")
-		writer.WriteString(line + "\n")
+		_, _ = writer.WriteString(line + "\n")
 	}
 }
 
@@ -216,7 +216,7 @@ func (tc *ThesaurusConverter) FilterByDomain(inputFile, outputFile string, keywo
 		}
 
 		if shouldInclude {
-			writer.WriteString(line + "\n")
+			_, _ = writer.WriteString(line + "\n")
 			filteredCount++
 		}
 	}
