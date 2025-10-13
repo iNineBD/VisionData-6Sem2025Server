@@ -23,7 +23,7 @@ func (tc *ThesaurusConverter) ConvertDatToSynonyms(inputFile, outputFile string)
 		return fmt.Errorf("erro ao abrir arquivo: %v", err)
 	}
 	defer func() {
-		input.Close()
+		_ = input.Close()
 	}()
 
 	output, err := os.Create(outputFile)
@@ -31,13 +31,13 @@ func (tc *ThesaurusConverter) ConvertDatToSynonyms(inputFile, outputFile string)
 		return fmt.Errorf("erro ao criar arquivo de saída: %v", err)
 	}
 	defer func() {
-		output.Close()
+		_ = output.Close()
 	}()
 
 	scanner := bufio.NewScanner(input)
 	writer := bufio.NewWriter(output)
 	defer func() {
-		writer.Flush()
+		_ = writer.Flush()
 	}()
 
 	var currentWord string
@@ -171,7 +171,7 @@ func (tc *ThesaurusConverter) FilterByDomain(inputFile, outputFile string, keywo
 		return err
 	}
 	defer func() {
-		input.Close()
+		_ = input.Close()
 	}()
 
 	output, err := os.Create(outputFile)
@@ -179,13 +179,13 @@ func (tc *ThesaurusConverter) FilterByDomain(inputFile, outputFile string, keywo
 		return err
 	}
 	defer func() {
-		output.Close()
+		_ = output.Close()
 	}()
 
 	scanner := bufio.NewScanner(input)
 	writer := bufio.NewWriter(output)
 	defer func() {
-		writer.Flush()
+		_ = writer.Flush()
 	}()
 
 	keywordMap := make(map[string]bool)
