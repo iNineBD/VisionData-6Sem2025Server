@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"orderstreamrest/pkg/logger"
 	"strings"
@@ -13,7 +12,7 @@ import (
 )
 
 // setupLogger -
-func setupLogger(engine *gin.Engine, logger *logger.Logger) {
+func setupLogger(engine *gin.Engine, logger *logger.ElasticsearchLogger) {
 
 	middlewareConfig := MiddlewareConfig{
 		LogRequestBody:  true,
@@ -50,6 +49,10 @@ type MiddlewareConfig struct {
 	ErrorsOnly bool
 	// Custom request ID header name
 	RequestIDHeader string
+	// Function to extract user context from Gin context
+	UserExtractor func(*gin.Context) *logger.UserContext
+	// Function to extract trace context from Gin context
+	TraceExtractor func(*gin.Context) *logger.TraceContext
 }
 
 // DefaultMiddlewareConfig returns a default configuration
@@ -67,6 +70,7 @@ func DefaultMiddlewareConfig() MiddlewareConfig {
 		},
 		SkipPaths: []string{
 			"/health",
+			"/swagger",
 		},
 		ErrorsOnly:      false,
 		RequestIDHeader: "X-Request-ID",
@@ -88,7 +92,8 @@ func (w *responseBodyWriter) Write(data []byte) (int, error) {
 }
 
 // LoggerMiddleware creates a Gin middleware that logs HTTP requests
-func LoggerMiddleware(esLogger *logger.Logger, config ...MiddlewareConfig) gin.HandlerFunc {
+func LoggerMiddleware(esLogger *logger.ElasticsearchLogger, config ...MiddlewareConfig) gin.HandlerFunc {
+
 	cfg := DefaultMiddlewareConfig()
 	if len(config) > 0 {
 		cfg = config[0]
@@ -183,17 +188,67 @@ func LoggerMiddleware(esLogger *logger.Logger, config ...MiddlewareConfig) gin.H
 			}
 		}
 
+		// Build HTTP context
+		httpContext := &logger.HTTPContext{
+			Method:       c.Request.Method,
+			URL:          c.Request.URL.String(),
+			Path:         c.Request.URL.Path,
+			Query:        c.Request.URL.RawQuery,
+			UserAgent:    c.Request.UserAgent(),
+			RemoteIP:     c.ClientIP(),
+			Headers:      headers,
+			StatusCode:   statusCode,
+			ResponseSize: int64(c.Writer.Size()),
+			ContentType:  c.Writer.Header().Get("Content-Type"),
+			Referer:      c.Request.Referer(),
+			RequestID:    requestID,
+			RequestBody:  requestBody,
+			ResponseBody: responseBody,
+		}
+
+		// Build performance context
+		performanceContext := &logger.PerformanceContext{
+			Duration:   duration,
+			DurationMs: float64(duration.Nanoseconds()) / 1e6,
+		}
+
+		// Extract user context if extractor is provided
+		var userContext *logger.UserContext
+		if cfg.UserExtractor != nil {
+			userContext = cfg.UserExtractor(c)
+		}
+
+		// Extract trace context if extractor is provided
+		var traceContext *logger.TraceContext
+		if cfg.TraceExtractor != nil {
+			traceContext = cfg.TraceExtractor(c)
+		}
+
+		// Collect any errors from the context
+		var errorContext *logger.ErrorContext
+		if len(c.Errors) > 0 {
+			lastError := c.Errors.Last()
+			errorContext = &logger.ErrorContext{
+				Message: lastError.Error(),
+			}
+		}
+
 		// Determine log level based on status code
+		var level logger.LogLevel
 		var message string
 
 		switch {
 		case statusCode >= 500:
+			level = logger.LevelError
 			message = "HTTP Server Error"
 		case statusCode >= 400:
+			level = logger.LevelWarn
 			message = "HTTP Client Error"
 		case statusCode >= 300:
+			level = logger.LevelInfo
 			message = "HTTP Redirect"
 		default:
+			level = logger.LevelInfo
 			message = "HTTP Request"
 		}
 
@@ -211,8 +266,17 @@ func LoggerMiddleware(esLogger *logger.Logger, config ...MiddlewareConfig) gin.H
 			}
 		}
 
-		esLogger.Debug(fmt.Sprintf("%s - %s %s %d %s\n\nRequest Body: %s\n\nResponse Body: %s",
-			message, c.Request.Method, c.Request.URL.Path, statusCode, duration.String(), requestBody, responseBody))
+		// Log the request
+		logContext := logger.LogContext{
+			HTTP:        httpContext,
+			Performance: performanceContext,
+			User:        userContext,
+			Trace:       traceContext,
+			Error:       errorContext,
+			Fields:      fields,
+		}
+
+		esLogger.WithContext(level, message, logContext)
 	}
 }
 

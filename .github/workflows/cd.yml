@@ -10,7 +10,7 @@ on:
 
 env:
   DOCKERHUB_ENABLED: 'true'
-  IMAGE_NAME: inineapi/visiondata6sem
+  IMAGE_NAME: inineapi/visiondata-server
   TAG: ${{ github.sha }}
 
 jobs:
@@ -44,13 +44,16 @@ jobs:
 
       - name: Compacta todos (bundle)
         run: |
-          tar -czf pack-visiondata.tar.gz -C dist .
+
+          tar -czf pack-visiondata-server.tar.gz -C dist .
 
       - name: Upload bundle
         uses: actions/upload-artifact@v4
         with:
-          name: pack-visiondata
-          path: pack-visiondata.tar.gz
+
+          name: pack-visiondata-server
+          path: pack-visiondata-server.tar.gz
+
 
   docker-build-push:
     runs-on: ubuntu-latest
@@ -59,13 +62,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+
       # - name: Baixa binário
       #   uses: actions/download-artifact@v4
       #   with:
       #     name: visiondata
       #     run-id: ${{ github.event.workflow_run.id }}
       #     path: ./dist
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -95,13 +98,12 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: pack-visiondata
+          name: pack-visiondata-server
           path: .
       - name: Deploy Staging
         run: |
           echo "Deploy Staging with Docker image: ${{ env.IMAGE_NAME }}:${{ env.TAG }}"
-          tar -xzf pack-visiondata.tar.gz
-
+          tar -xzf pack-visiondata-server.tar.gz
   deploy-prod:
     runs-on: self-hosted
     needs: [docker-build-push]
@@ -112,12 +114,33 @@ jobs:
       - name: Deploy Produção via Docker
         run: |
           echo "Deploying Docker image: ${{ env.IMAGE_NAME }}:${{ env.TAG }}"
+
+          # Pull da nova imagem
           docker pull ${{ env.IMAGE_NAME }}:${{ env.TAG }}
-          docker stop visiondata || true
-          docker rm visiondata || true
-          docker run -d --name visiondata \
+
+          # Parar e remover container antigo (NOME CORRETO)
+          docker stop visiondata-server || true
+          docker rm visiondata-server || true
+
+          # Criar diretórios no host se não existirem
+          mkdir -p /home/dev/visiondata-server/logs
+          mkdir -p /home/dev/visiondata-server/certs
+
+          # Rodar novo container com todas as configurações (NOME CONSISTENTE)
+          docker run -d \
+            --name visiondata-server \
             -p 80:8080 \
             -p 443:8443 \
             --restart unless-stopped \
+            --env-file /home/dev/visiondata-server/.env \
+            -v /home/dev/visiondata-server/certs:/app/certs:ro \
+            -v /home/dev/visiondata-server/logs:/app/logs:rw \
+            -e LOG_DIR=/app/logs \
+            -e DEBUG=true \
             ${{ env.IMAGE_NAME }}:${{ env.TAG }}
-          echo "Deploy completed successfully!"
+
+          # Verificar se o container está rodando (NOME CORRETO)
+          docker ps | grep visiondata-server
+          docker logs visiondata-server --tail 10
+
+          echo "Server deploy completed successfully!"

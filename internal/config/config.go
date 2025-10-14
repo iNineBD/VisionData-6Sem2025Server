@@ -8,13 +8,15 @@ import (
 	"orderstreamrest/internal/repositories/sqlserver"
 	"orderstreamrest/pkg/logger"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // App - a struct that holds a redis client
 type App struct {
 	Redis     *redis.RedisInternal
 	ES        *elsearch.Client
-	Logger    *logger.Logger
+	Logger    *logger.ElasticsearchLogger
 	SqlServer *sqlserver.Internal
 }
 
@@ -22,6 +24,8 @@ type App struct {
 func NewConfig() (*App, error) {
 
 	cfg := new(App)
+
+	executionID := uuid.New().String()[0:5]
 
 	err := cfg.newClientRedis()
 	if err != nil {
@@ -34,14 +38,23 @@ func NewConfig() (*App, error) {
 	}
 
 	loggerConfig := logger.Config{
-		FlushInterval: 5 * time.Second,
-		BufferSize:    1000,
-		LogLevel:      logger.LevelDebug,
-		EnableCaller:  true,
-		LogDir:        "logs",
+
+		Service:         "datavision-api",
+		Version:         "1.0.0",
+		Environment:     "homol", // or "development", "staging"
+		IndexName:       "datavision-api-logs",
+		FlushInterval:   5 * time.Second,
+		BatchSize:       1,
+		BufferSize:      1000,
+		LogLevel:        logger.LevelInfo,
+		EnableCaller:    true,
+		EnableBody:      true, // Set to true if you want to log request/response bodies
+		MaxBodySize:     1024,
+		SensitiveFields: []string{"password", "token", "secret"},
+		ExecutionID:     executionID,
 	}
 
-	cfg.Logger = logger.NewLogger(loggerConfig)
+	cfg.Logger = logger.NewLogger(cfg.ES.ES, loggerConfig)
 
 	sqlServer, err := sqlserver.NewSQLServerInternal()
 	if err != nil {
