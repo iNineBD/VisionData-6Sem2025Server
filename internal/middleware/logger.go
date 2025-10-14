@@ -93,6 +93,7 @@ func (w *responseBodyWriter) Write(data []byte) (int, error) {
 
 // LoggerMiddleware creates a Gin middleware that logs HTTP requests
 func LoggerMiddleware(esLogger *logger.ElasticsearchLogger, config ...MiddlewareConfig) gin.HandlerFunc {
+
 	cfg := DefaultMiddlewareConfig()
 	if len(config) > 0 {
 		cfg = config[0]
@@ -167,11 +168,6 @@ func LoggerMiddleware(esLogger *logger.ElasticsearchLogger, config ...Middleware
 		if cfg.ErrorsOnly && statusCode < 400 {
 			return
 		}
-
-		// Build query string
-		// if raw != "" {
-		// 	path = fmt.Sprintf("%s?%s", path, raw)
-		// }
 
 		// Collect headers (excluding sensitive ones)
 		headers := make(map[string]string)

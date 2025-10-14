@@ -128,6 +128,7 @@ type TraceContext struct {
 	SpanID   string `json:"span_id"`   // Span ID
 	ParentID string `json:"parent_id"` // Parent span ID
 	Sampled  bool   `json:"sampled"`   // Whether this trace is sampled
+
 }
 
 // Config holds the logger configuration
@@ -169,15 +170,18 @@ func NewLogger(es *elasticsearch.Client, config Config) *ElasticsearchLogger {
 	if config.FlushInterval == 0 {
 		config.FlushInterval = 1 * time.Second
 	}
+  
 	if config.BatchSize == 0 {
 		config.BatchSize = 10
 	}
+
 	if config.BufferSize == 0 {
 		config.BufferSize = 1000
 	}
 	if config.LogLevel == "" {
 		config.LogLevel = LevelInfo
 	}
+  
 	if config.MaxBodySize == 0 {
 		config.MaxBodySize = 1024 // 1KB default
 	}
@@ -193,22 +197,24 @@ func NewLogger(es *elasticsearch.Client, config Config) *ElasticsearchLogger {
 		cancel:     cancel,
 		hostname:   hostname,
 		pid:        os.Getpid(),
+
 	}
 
 	// Start background goroutine for processing logs
 	logger.wg.Add(1)
 	go logger.processLogs()
-
 	return logger
 }
 
+
 // processLogs handles batching and sending logs to Elasticsearch
 func (l *ElasticsearchLogger) processLogs() {
+
 	defer l.wg.Done()
 
 	ticker := time.NewTicker(l.config.FlushInterval)
 	defer ticker.Stop()
-
+ 
 	batch := make([]LogEntry, 0, l.config.BatchSize)
 
 	flush := func() {
@@ -227,13 +233,13 @@ func (l *ElasticsearchLogger) processLogs() {
 		select {
 		case entry := <-l.logChannel:
 			batch = append(batch, entry)
+      
 			if len(batch) >= l.config.BatchSize {
 				flush()
 			}
 
 		case <-ticker.C:
 			flush()
-
 		case <-l.ctx.Done():
 			flush() // Final flush
 			return
@@ -438,6 +444,7 @@ func (l *ElasticsearchLogger) Close() error {
 	l.cancel()
 	l.wg.Wait()
 	close(l.logChannel)
+
 	return nil
 }
 

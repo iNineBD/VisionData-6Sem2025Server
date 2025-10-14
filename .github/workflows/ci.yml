@@ -33,6 +33,7 @@ jobs:
       - name: Generate Swagger docs
         run: swag init -g cmd/api/main.go -o docs --parseDependency --parseInternal
 
+
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v8
         with:
@@ -53,6 +54,7 @@ jobs:
 
       - name: Generate Swagger docs
         run: swag init -g cmd/api/main.go -o docs --parseDependency --parseInternal
+
 
       - name: gofmt check
         run: |
@@ -89,7 +91,6 @@ jobs:
         with:
           name: coverage
           path: coverage.out
-
       - name: List artefacts on CI
         run: ls -lh visiondata.tar.gz coverage.out
 
@@ -105,6 +106,7 @@ jobs:
           name: coverage
       - name: SonarQube Scan
         uses: sonarsource/sonarqube-scan-action@master
+
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}

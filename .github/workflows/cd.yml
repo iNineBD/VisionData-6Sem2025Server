@@ -44,13 +44,16 @@ jobs:
 
       - name: Compacta todos (bundle)
         run: |
+
           tar -czf pack-visiondata-server.tar.gz -C dist .
 
       - name: Upload bundle
         uses: actions/upload-artifact@v4
         with:
+
           name: pack-visiondata-server
           path: pack-visiondata-server.tar.gz
+
 
   docker-build-push:
     runs-on: ubuntu-latest
@@ -59,6 +62,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+
+      # - name: Baixa binário
+      #   uses: actions/download-artifact@v4
+      #   with:
+      #     name: visiondata
+      #     run-id: ${{ github.event.workflow_run.id }}
+      #     path: ./dist
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -94,7 +104,6 @@ jobs:
         run: |
           echo "Deploy Staging with Docker image: ${{ env.IMAGE_NAME }}:${{ env.TAG }}"
           tar -xzf pack-visiondata-server.tar.gz
-
   deploy-prod:
     runs-on: self-hosted
     needs: [docker-build-push]
