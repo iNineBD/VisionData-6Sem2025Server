@@ -9,9 +9,7 @@ import (
 	"orderstreamrest/pkg/logger"
 	"time"
 
-
 	"github.com/google/uuid"
-
 )
 
 // App - a struct that holds a redis client
@@ -26,7 +24,7 @@ type App struct {
 func NewConfig() (*App, error) {
 
 	cfg := new(App)
-  
+
 	executionID := uuid.New().String()[0:5]
 
 	err := cfg.newClientRedis()
@@ -57,7 +55,6 @@ func NewConfig() (*App, error) {
 	}
 
 	cfg.Logger = logger.NewLogger(cfg.ES.ES, loggerConfig)
-
 
 	sqlServer, err := sqlserver.NewSQLServerInternal()
 	if err != nil {

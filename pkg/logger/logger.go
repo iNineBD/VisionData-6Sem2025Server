@@ -170,7 +170,7 @@ func NewLogger(es *elasticsearch.Client, config Config) *ElasticsearchLogger {
 	if config.FlushInterval == 0 {
 		config.FlushInterval = 1 * time.Second
 	}
-  
+
 	if config.BatchSize == 0 {
 		config.BatchSize = 10
 	}
@@ -181,7 +181,7 @@ func NewLogger(es *elasticsearch.Client, config Config) *ElasticsearchLogger {
 	if config.LogLevel == "" {
 		config.LogLevel = LevelInfo
 	}
-  
+
 	if config.MaxBodySize == 0 {
 		config.MaxBodySize = 1024 // 1KB default
 	}
@@ -197,7 +197,6 @@ func NewLogger(es *elasticsearch.Client, config Config) *ElasticsearchLogger {
 		cancel:     cancel,
 		hostname:   hostname,
 		pid:        os.Getpid(),
-
 	}
 
 	// Start background goroutine for processing logs
@@ -206,7 +205,6 @@ func NewLogger(es *elasticsearch.Client, config Config) *ElasticsearchLogger {
 	return logger
 }
 
-
 // processLogs handles batching and sending logs to Elasticsearch
 func (l *ElasticsearchLogger) processLogs() {
 
@@ -214,7 +212,7 @@ func (l *ElasticsearchLogger) processLogs() {
 
 	ticker := time.NewTicker(l.config.FlushInterval)
 	defer ticker.Stop()
- 
+
 	batch := make([]LogEntry, 0, l.config.BatchSize)
 
 	flush := func() {
@@ -233,7 +231,7 @@ func (l *ElasticsearchLogger) processLogs() {
 		select {
 		case entry := <-l.logChannel:
 			batch = append(batch, entry)
-      
+
 			if len(batch) >= l.config.BatchSize {
 				flush()
 			}
