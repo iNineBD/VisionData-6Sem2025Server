@@ -5,6 +5,7 @@ import (
 	"orderstreamrest/internal/service/healthcheck"
 	"orderstreamrest/internal/service/metrics"
 	"orderstreamrest/internal/service/tickets"
+	"orderstreamrest/internal/service/users"
 
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
@@ -26,4 +27,17 @@ func InitiateRoutes(engine *gin.Engine, cfg *config.App) {
 	ticketsGroup.GET("/:id", tickets.SearchTicketByID(cfg))
 	ticketsGroup.GET("/query", tickets.GetByWord(cfg))
 
+	userRoutes := engine.Group("/users")
+	{
+
+		// Rotas de CRUD
+		userRoutes.POST("", users.CreateUser(cfg))
+		userRoutes.GET("", users.GetAllUsers(cfg))
+		userRoutes.GET("/:id", users.GetUser(cfg))
+		userRoutes.PUT("/:id", users.UpdateUser(cfg))
+		userRoutes.DELETE("/:id", users.DeleteUser(cfg))
+
+		// Rota para alterar senha (qualquer usuário autenticado pode alterar sua própria senha)
+		userRoutes.POST("/change-password", users.ChangePassword(cfg))
+	}
 }
