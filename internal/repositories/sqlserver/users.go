@@ -11,7 +11,7 @@ import (
 
 // CreateUser cria um novo usuário
 func (s *Internal) CreateUser(ctx context.Context, user *entities.User) (int, error) {
-	result := s.db.WithContext(ctx).Table("dbusers.Users").Create(user)
+	result := s.db.WithContext(ctx).Table("dbo.tb_users").Create(user)
 	if result.Error != nil {
 		return 0, fmt.Errorf("failed to create user: %w", result.Error)
 	}
@@ -22,7 +22,7 @@ func (s *Internal) CreateUser(ctx context.Context, user *entities.User) (int, er
 func (s *Internal) GetUserByID(ctx context.Context, id int) (*entities.User, error) {
 	var user entities.User
 	err := s.db.WithContext(ctx).
-		Table("dbusers.Users").
+		Table("dbo.tb_users").
 		Where("Id = ?", id).
 		First(&user).Error
 
@@ -40,7 +40,7 @@ func (s *Internal) GetUserByID(ctx context.Context, id int) (*entities.User, err
 func (s *Internal) GetUserByEmail(ctx context.Context, email string) (*entities.User, error) {
 	var user entities.User
 	err := s.db.WithContext(ctx).
-		Table("dbusers.Users").
+		Table("dbo.tb_users").
 		Where("Email = ?", email).
 		First(&user).Error
 
@@ -58,7 +58,7 @@ func (s *Internal) GetUserByEmail(ctx context.Context, email string) (*entities.
 func (s *Internal) GetUserByMicrosoftID(ctx context.Context, microsoftId string) (*entities.User, error) {
 	var user entities.User
 	err := s.db.WithContext(ctx).
-		Table("dbusers.Users").
+		Table("dbo.tb_users").
 		Where("MicrosoftId = ?", microsoftId).
 		First(&user).Error
 
@@ -76,7 +76,7 @@ func (s *Internal) GetUserByMicrosoftID(ctx context.Context, microsoftId string)
 func (s *Internal) GetAllUsers(ctx context.Context, page, pageSize int, onlyActive bool) ([]entities.User, int64, error) {
 	offset := (page - 1) * pageSize
 
-	query := s.db.WithContext(ctx).Table("dbusers.Users")
+	query := s.db.WithContext(ctx).Table("dbo.tb_users")
 
 	if onlyActive {
 		query = query.Where("IsActive = ?", true)
@@ -115,7 +115,7 @@ func (s *Internal) UpdateUser(ctx context.Context, id int, user *entities.User) 
 	}
 
 	result := s.db.WithContext(ctx).
-		Table("dbusers.Users").
+		Table("dbo.tb_users").
 		Where("Id = ?", id).
 		Updates(updates)
 
@@ -133,7 +133,7 @@ func (s *Internal) UpdateUser(ctx context.Context, id int, user *entities.User) 
 // UpdatePassword atualiza a senha de um usuário
 func (s *Internal) UpdatePassword(ctx context.Context, id int, passwordHash string, updatedBy int) error {
 	result := s.db.WithContext(ctx).
-		Table("dbusers.Users").
+		Table("dbo.tb_users").
 		Where("Id = ?", id).
 		Updates(map[string]interface{}{
 			"PasswordHash": passwordHash,
@@ -155,7 +155,7 @@ func (s *Internal) UpdatePassword(ctx context.Context, id int, passwordHash stri
 // UpdateLastLogin atualiza o último login do usuário
 func (s *Internal) UpdateLastLogin(ctx context.Context, id int) error {
 	result := s.db.WithContext(ctx).
-		Table("dbusers.Users").
+		Table("dbo.tb_users").
 		Where("Id = ?", id).
 		Update("LastLoginAt", time.Now())
 
@@ -166,15 +166,36 @@ func (s *Internal) UpdateLastLogin(ctx context.Context, id int) error {
 	return nil
 }
 
+/*
+type User struct {
+	Id           int        `json:"id" gorm:"column:Id;primaryKey;autoIncrement"`
+	Name         string     `json:"name" gorm:"column:Name;type:nvarchar(200);not null"`
+	Email        string     `json:"email" gorm:"column:Email;type:nvarchar(255);not null;unique"`
+	PasswordHash *string    `json:"-" gorm:"column:PasswordHash;type:nvarchar(500)"` // Nunca retornar no JSON
+	UserType     string     `json:"userType" gorm:"column:UserType;type:nvarchar(50);not null"`
+	MicrosoftId  *string    `json:"microsoftId,omitempty" gorm:"column:MicrosoftId;type:nvarchar(255);unique"`
+	IsActive     bool       `json:"isActive" gorm:"column:IsActive;type:bit;not null;default:1"`
+	CreatedAt    time.Time  `json:"createdAt" gorm:"column:CreatedAt;type:datetime2;not null;default:GETDATE()"`
+	UpdatedAt    *time.Time `json:"updatedAt,omitempty" gorm:"column:UpdatedAt;type:datetime2"`
+	LastLoginAt  *time.Time `json:"lastLoginAt,omitempty" gorm:"column:LastLoginAt;type:datetime2"`
+	CreatedBy    *int       `json:"createdBy,omitempty" gorm:"column:CreatedBy;type:int"`
+	UpdatedBy    *int       `json:"updatedBy,omitempty" gorm:"column:UpdatedBy;type:int"`
+}*/
+
 // DeleteUser deleta um usuário (soft delete - marca como inativo)
 func (s *Internal) DeleteUser(ctx context.Context, id int, deletedBy int) error {
 	result := s.db.WithContext(ctx).
-		Table("dbusers.Users").
+		Table("dbo.tb_users").
 		Where("Id = ?", id).
 		Updates(map[string]interface{}{
-			"IsActive":  false,
-			"UpdatedAt": time.Now(),
-			"UpdatedBy": deletedBy,
+			"IsActive":     false,
+			"UpdatedAt":    time.Now(),
+			"UpdatedBy":    deletedBy,
+			"Name":         nil,
+			"Email":        nil,
+			"PasswordHash": nil,
+			"MicrosoftId":  nil,
+			"UserType":     nil,
 		})
 
 	if result.Error != nil {
