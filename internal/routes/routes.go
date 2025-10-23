@@ -18,26 +18,29 @@ func InitiateRoutes(engine *gin.Engine, cfg *config.App) {
 	engine.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	healthGroup := engine.Group("/healthcheck")
-	healthGroup.GET("/", healthcheck.Health(cfg))
+	{
+		healthGroup.GET("/", healthcheck.Health(cfg))
+	}
 
 	metricsGroup := engine.Group("/metrics")
-	metricsGroup.GET("/tickets", metrics.GetTicketsMetrics(cfg))
+	{
+		metricsGroup.GET("/tickets", metrics.GetTicketsMetrics(cfg))
+	}
 
 	ticketsGroup := engine.Group("/tickets")
-	ticketsGroup.GET("/:id", tickets.SearchTicketByID(cfg))
-	ticketsGroup.GET("/query", tickets.GetByWord(cfg))
+	{
+		ticketsGroup.GET("/:id", tickets.SearchTicketByID(cfg))
+		ticketsGroup.GET("/query", tickets.GetByWord(cfg))
+	}
 
 	userRoutes := engine.Group("/users")
 	{
-
-		// Rotas de CRUD
 		userRoutes.POST("", users.CreateUser(cfg))
 		userRoutes.GET("", users.GetAllUsers(cfg))
 		userRoutes.GET("/:id", users.GetUser(cfg))
 		userRoutes.PUT("/:id", users.UpdateUser(cfg))
 		userRoutes.DELETE("/:id", users.DeleteUser(cfg))
 
-		// Rota para alterar senha (qualquer usuário autenticado pode alterar sua própria senha)
 		userRoutes.POST("/change-password", users.ChangePassword(cfg))
 	}
 }
