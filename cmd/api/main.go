@@ -28,9 +28,12 @@ import (
 // @host      localhost:8080
 // @BasePath  /
 
-// @securityDefinitions.apikey BearerAuth
+// @securityDefinitions.BearerAuth
 // @in header
+// @type http
 // @name Authorization
+// @scheme bearer
+// @bearerFormat JWT
 // @description Type "Bearer" followed by a space and JWT token.
 
 // Definições de responses globais reutilizáveis:

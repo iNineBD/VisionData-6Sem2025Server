@@ -80,10 +80,12 @@ type UserCreatedResponse struct {
 // AUTH RESPONSE DTOs
 // ============================================
 
-// LoginResponse representa a resposta de login
+// LoginResponse representa a resposta de login bem-sucedida
 type LoginResponse struct {
-	Token     string       `json:"token" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJlbWFpbCI6ImpvYW8uc2lsdmFAZXhhbXBsZS5jb20iLCJuYW1lIjoiSm/Do28gU2lsdmEiLCJ1c2VyX3R5cGUiOiJBR0VOVCIsImlzX2FjdGl2ZSI6dHJ1ZSwiZXhwIjoxNzI5MTg1NDAwLCJpYXQiOjE3MjkwOTkwMDB9.abc123xyz"`
-	ExpiresAt time.Time    `json:"expiresAt" example:"2025-10-17T10:30:00Z"`
+	Token     string       `json:"token" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."`
+	TokenType string       `json:"token_type" example:"Bearer"`
+	ExpiresIn int          `json:"expires_in" example:"3600"`
+	ExpiresAt time.Time    `json:"expires_at" example:"2025-10-23T15:30:00Z"`
 	User      UserResponse `json:"user"`
 }
 

@@ -2,6 +2,7 @@ package routes
 
 import (
 	"orderstreamrest/internal/config"
+	"orderstreamrest/internal/middleware"
 	"orderstreamrest/internal/service/healthcheck"
 	"orderstreamrest/internal/service/metrics"
 	"orderstreamrest/internal/service/tickets"
@@ -22,18 +23,18 @@ func InitiateRoutes(engine *gin.Engine, cfg *config.App) {
 		healthGroup.GET("/", healthcheck.Health(cfg))
 	}
 
-	metricsGroup := engine.Group("/metrics")
+	metricsGroup := engine.Group("/metrics", middleware.Auth())
 	{
 		metricsGroup.GET("/tickets", metrics.GetTicketsMetrics(cfg))
 	}
 
-	ticketsGroup := engine.Group("/tickets")
+	ticketsGroup := engine.Group("/tickets", middleware.Auth())
 	{
 		ticketsGroup.GET("/:id", tickets.SearchTicketByID(cfg))
 		ticketsGroup.GET("/query", tickets.GetByWord(cfg))
 	}
 
-	userRoutes := engine.Group("/users")
+	userRoutes := engine.Group("/users", middleware.Auth())
 	{
 		userRoutes.POST("", users.CreateUser(cfg))
 		userRoutes.GET("", users.GetAllUsers(cfg))
@@ -42,5 +43,11 @@ func InitiateRoutes(engine *gin.Engine, cfg *config.App) {
 		userRoutes.DELETE("/:id", users.DeleteUser(cfg))
 
 		userRoutes.POST("/change-password", users.ChangePassword(cfg))
+	}
+
+	authRoutes := engine.Group("/auth")
+	{
+		authRoutes.POST("/login", users.Login(cfg))
+		// authRoutes.POST("/microsoft", users.MicrosoftAuth(cfg))
 	}
 }
