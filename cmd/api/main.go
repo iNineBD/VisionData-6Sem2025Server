@@ -12,6 +12,7 @@ import (
 	_ "orderstreamrest/docs"
 
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 )
 
 // @title           VisionData API
@@ -44,6 +45,10 @@ import (
 // @response BadRequest {object} dto.ErrorResponse "Requisição inválida"
 
 func main() {
+
+	if os.Getenv("ENVIRONMENT_APP") == "" {
+		_ = godotenv.Load("******")
+	}
 
 	fmt.Printf("Environment: %s\n", os.Getenv("ENVIRONMENT_APP"))
 
