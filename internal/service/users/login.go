@@ -1,6 +1,7 @@
 package users
 
 import (
+	"log"
 	"net/http"
 	"orderstreamrest/internal/config"
 	"orderstreamrest/internal/middleware"
@@ -121,6 +122,8 @@ func Login(cfg *config.App) gin.HandlerFunc {
 		if err := cfg.SqlServer.UpdateUser(c.Request.Context(), user.Id, user); err != nil {
 			// Log error but don't fail the login
 			// A falha em atualizar LastLoginAt não deve impedir o login
+			log.Printf("Failed to update LastLoginAt for user %d: %v", user.Id, err)
+
 		}
 
 		// Calcular tempo de expiração (1 hora a partir de agora)
