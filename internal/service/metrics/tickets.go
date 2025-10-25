@@ -156,3 +156,103 @@ func GetTicketsMetrics(cfg *config.App) gin.HandlerFunc {
 
 	}
 }
+
+// MeanTimeByPriority Tempo médio por prioridade
+// @Summary      Tempo Médio de Resolução por Prioridade
+// @Description  Retorna o tempo médio de resolução dos tickets, agrupado por prioridade, em horas e dias.
+// @Tags         metrics
+// @Accept       json
+// @Produce      json
+// @Security 	 BearerAuth
+// @Success      200 {object} dto.SuccessResponse{data=[]dto.MeanTimeByPriority} "Mean time by priority retrieved successfully"
+// @Failure 	 400 {object} dto.ErrorResponse "Bad Request"
+// @Failure 	 401 {object} dto.AuthErrorResponse "Unauthorized - Invalid token"
+// @Failure 	 403 {object} dto.ErrorResponse "Forbidden - No permission"
+// @Failure 	 429 {object} dto.RateLimitErrorResponse "Rate limit exceeded"
+// @Failure 	 500 {object} dto.ErrorResponse "Internal Server Error"
+// @Header       200 {string} X-RateLimit-Limit "Requests per minute limit"
+// @Header       200 {string} X-RateLimit-Remaining "Remaining requests in the period"
+// @Header       200 {string} X-RateLimit-Reset "Rate limit reset timestamp"
+// @Router       /metrics/tickets/mean-time-resolution-by-priority [get]
+func MeanTimeByPriority(cfg *config.App) gin.HandlerFunc {
+	return func(c *gin.Context) {
+
+		meanTimeByPriority, err := cfg.SqlServer.GetAverageResolutionTime()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+				BaseResponse: dto.BaseResponse{
+					Success:   false,
+					Timestamp: c.GetTime("request_start_time"),
+				},
+				Error:   "Internal Server Error",
+				Code:    http.StatusInternalServerError,
+				Message: "Failed to retrieve mean time by priority",
+				Details: err.Error(),
+			})
+			return
+		}
+
+		var metrics []dto.MeanTimeByPriority
+		for _, item := range meanTimeByPriority {
+			metrics = append(metrics, dto.MeanTimeByPriority{
+				PriorityName: item.NomePrioridade,
+				MeanTimeHour: item.MediaResolucaoHoras,
+				MeanTimeDay:  item.MediaResolucaoDias,
+			})
+		}
+
+		c.JSON(http.StatusOK, dto.SuccessResponse{
+			BaseResponse: dto.BaseResponse{
+				Success:   true,
+				Timestamp: time.Now(),
+			},
+			Data:    metrics,
+			Message: "Mean time by priority retrieved successfully",
+		})
+	}
+}
+
+// QtdTicketsByStatusYearMonth retorna a quantidade de tickets por status, ano e mês
+// @Summary      Quantidade de Tickets por Status, Ano e Mês
+// @Description  Retorna a contagem de tickets agrupados por status, ano e mês.
+// @Tags         metrics
+// @Accept       json
+// @Produce      json
+// @Security 	 BearerAuth
+// @Success      200 {object} dto.SuccessResponse{data=dto.TicketsByStatusYearMonth} "Tickets by status and month retrieved successfully"
+// @Failure 	 400 {object} dto.ErrorResponse "Bad Request"
+// @Failure 	 401 {object} dto.AuthErrorResponse "Unauthorized - Invalid token"
+// @Failure 	 403 {object} dto.ErrorResponse "Forbidden - No permission"
+// @Failure 	 429 {object} dto.RateLimitErrorResponse "Rate limit exceeded"
+// @Failure 	 500 {object} dto.ErrorResponse "Internal Server Error"
+// @Header       200 {string} X-RateLimit-Limit "Requests per minute limit"
+// @Header       200 {string} X-RateLimit-Remaining "Remaining requests in the period"
+// @Header       200 {string} X-RateLimit-Reset "Rate limit reset timestamp"
+// @Router       /metrics/tickets/qtd-tickets-by-status-year-month [get]
+func QtdTicketsByStatusYearMonth(cfg *config.App) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		data, err := cfg.SqlServer.GetTicketsByStatusAndMonth()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+				BaseResponse: dto.BaseResponse{
+					Success:   false,
+					Timestamp: c.GetTime("request_start_time"),
+				},
+				Error:   "Internal Server Error",
+				Code:    http.StatusInternalServerError,
+				Message: "Failed to retrieve tickets by status and month",
+				Details: err.Error(),
+			})
+			return
+		}
+
+		c.JSON(http.StatusOK, dto.SuccessResponse{
+			BaseResponse: dto.BaseResponse{
+				Success:   true,
+				Timestamp: time.Now(),
+			},
+			Data:    data,
+			Message: "Tickets by status and month retrieved successfully",
+		})
+	}
+}

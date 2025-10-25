@@ -23,9 +23,11 @@ func InitiateRoutes(engine *gin.Engine, cfg *config.App) {
 		healthGroup.GET("/", healthcheck.Health(cfg))
 	}
 
-	metricsGroup := engine.Group("/metrics", middleware.Auth())
+	metricsGroup := engine.Group("/metrics")
 	{
 		metricsGroup.GET("/tickets", metrics.GetTicketsMetrics(cfg))
+		metricsGroup.GET("/tickets/mean-time-by-priority", metrics.MeanTimeByPriority(cfg))
+		metricsGroup.GET("/tickets/qtd-by-status-year-month", metrics.QtdTicketsByStatusYearMonth(cfg))
 	}
 
 	ticketsGroup := engine.Group("/tickets", middleware.Auth())
@@ -50,4 +52,5 @@ func InitiateRoutes(engine *gin.Engine, cfg *config.App) {
 		authRoutes.POST("/login", users.Login(cfg))
 		// authRoutes.POST("/microsoft", users.MicrosoftAuth(cfg))
 	}
+
 }
