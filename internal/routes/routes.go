@@ -26,8 +26,10 @@ func InitiateRoutes(engine *gin.Engine, cfg *config.App) {
 	metricsGroup := engine.Group("/metrics")
 	{
 		metricsGroup.GET("/tickets", metrics.GetTicketsMetrics(cfg))
-		metricsGroup.GET("/tickets/mean-time-by-priority", metrics.MeanTimeByPriority(cfg))
-		metricsGroup.GET("/tickets/qtd-by-status-year-month", metrics.QtdTicketsByStatusYearMonth(cfg))
+		metricsGroup.GET("/tickets/mean-time-resolution-by-priority", metrics.MeanTimeByPriority(cfg))
+		metricsGroup.GET("/tickets/qtd-tickets-by-status-year-month", metrics.QtdTicketsByStatusYearMonth(cfg))
+		metricsGroup.GET("/tickets/qtd-tickets-by-month", metrics.TicketsByMonth(cfg))
+		metricsGroup.GET("/tickets/qtd-tickets-by-priority-year-month", metrics.TicketsByPriorityAndMonth(cfg))
 	}
 
 	ticketsGroup := engine.Group("/tickets", middleware.Auth())

@@ -50,3 +50,9 @@ type Months struct {
 	Month string `json:"month"`
 	Total int64  `json:"total"`
 }
+
+type TicketsByMonth struct {
+	Ano          int   `json:"ano"`
+	Mes          int   `json:"mes"`
+	TotalTickets int64 `json:"totalTickets"`
+}
