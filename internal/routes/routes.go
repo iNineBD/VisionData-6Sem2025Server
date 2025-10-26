@@ -23,7 +23,7 @@ func InitiateRoutes(engine *gin.Engine, cfg *config.App) {
 		healthGroup.GET("/", healthcheck.Health(cfg))
 	}
 
-	metricsGroup := engine.Group("/metrics")
+	metricsGroup := engine.Group("/metrics", middleware.Auth())
 	{
 		metricsGroup.GET("/tickets", metrics.GetTicketsMetrics(cfg))
 		metricsGroup.GET("/tickets/mean-time-resolution-by-priority", metrics.MeanTimeByPriority(cfg))
