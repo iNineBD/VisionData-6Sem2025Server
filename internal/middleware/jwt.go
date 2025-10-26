@@ -13,12 +13,9 @@ import (
 	"github.com/golang-jwt/jwt"
 )
 
-// Gera token JWT
+// GenerateJWT generates a JWT token for a given user ID, email, and role
 func GenerateJWT(userID int64, email string, role int64) (string, error) {
-	jwtKey, err := LoadJWTKey()
-	if err != nil {
-		return "erro ao carregar JWT", err
-	}
+	jwtKey := os.Getenv("JWT_SECRET")
 	claims := jwt.MapClaims{
 
 		"user_id": userID,
@@ -30,6 +27,7 @@ func GenerateJWT(userID int64, email string, role int64) (string, error) {
 	return token.SignedString([]byte(jwtKey))
 }
 
+// VerifyToken verifies a JWT token and returns the token if valid
 func VerifyToken(token string) (*jwt.Token, error) {
 
 	tokenVerify, err := jwt.Parse(token, func(newToken *jwt.Token) (any, error) {
@@ -45,7 +43,8 @@ func VerifyToken(token string) (*jwt.Token, error) {
 	return tokenVerify, nil
 }
 
-func DecoteTokenJWT(token string) (jwt.MapClaims, error) {
+// DecodeTokenJWT decodes a JWT token and returns the claims
+func DecodeTokenJWT(token string) (jwt.MapClaims, error) {
 
 	tokenVerify, err := VerifyToken(token)
 
@@ -82,7 +81,7 @@ func Auth() gin.HandlerFunc {
 
 		token = parts[1]
 
-		claims, err := DecoteTokenJWT(token)
+		claims, err := DecodeTokenJWT(token)
 		if err != nil {
 			authError := dto.NewAuthErrorResponse(c, "Invalid token")
 			c.AbortWithStatusJSON(http.StatusUnauthorized, authError)
@@ -92,8 +91,4 @@ func Auth() gin.HandlerFunc {
 		c.Set("currentUser", claims)
 		c.Next()
 	}
-}
-
-func LoadJWTKey() (string, error) {
-	return os.Getenv("JWT_SECRET"), nil
 }

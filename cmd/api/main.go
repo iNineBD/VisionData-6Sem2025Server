@@ -12,6 +12,7 @@ import (
 	_ "orderstreamrest/docs"
 
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 )
 
 // @title           VisionData API
@@ -28,9 +29,12 @@ import (
 // @host      localhost:8080
 // @BasePath  /
 
-// @securityDefinitions.apikey BearerAuth
+// @securityDefinitions.BearerAuth
 // @in header
+// @type http
 // @name Authorization
+// @scheme bearer
+// @bearerFormat JWT
 // @description Type "Bearer" followed by a space and JWT token.
 
 // Definições de responses globais reutilizáveis:
@@ -41,6 +45,10 @@ import (
 // @response BadRequest {object} dto.ErrorResponse "Requisição inválida"
 
 func main() {
+
+	if os.Getenv("ENVIRONMENT_APP") == "" {
+		_ = godotenv.Load("******")
+	}
 
 	fmt.Printf("Environment: %s\n", os.Getenv("ENVIRONMENT_APP"))
 
