@@ -25,10 +25,7 @@ RUN go mod download && \
 RUN $(go env GOPATH)/bin/swag init -g cmd/api/main.go
 
 # Build da aplicação com otimizações
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
-    -ldflags='-w -s -extldflags "-static"' \
-    -a -installsuffix cgo \
-    -o visiondata ./cmd/api/main.go
+RUN CGO_ENABLED=0 go build -o visiondata ./cmd/api/main.go
 
 
 # Stage final - usar alpine ao invés de scratch para debugging
