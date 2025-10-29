@@ -1,3 +1,5 @@
+version: "3.8"
+
 services:
   vision-data-api:
     build:
@@ -26,6 +28,8 @@ services:
     environment:
       - LOG_DIR=/app/logs
       - DEBUG=true
+      - CERT_FILE=/app/certs/fullchain.pem
+      - KEY_FILE=/app/certs/privkey.pem
 
   redis:
     image: redis:7.4-alpine
