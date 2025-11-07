@@ -111,7 +111,6 @@ func (s *Internal) UpdateUser(ctx context.Context, id int, user *entities.User) 
 		"UserType":  user.UserType,
 		"IsActive":  user.IsActive,
 		"UpdatedAt": time.Now(),
-		"UpdatedBy": user.UpdatedBy,
 	}
 
 	result := s.db.WithContext(ctx).
@@ -138,7 +137,6 @@ func (s *Internal) UpdatePassword(ctx context.Context, id int, passwordHash stri
 		Updates(map[string]interface{}{
 			"PasswordHash": passwordHash,
 			"UpdatedAt":    time.Now(),
-			"UpdatedBy":    updatedBy,
 		})
 
 	if result.Error != nil {
@@ -190,12 +188,11 @@ func (s *Internal) DeleteUser(ctx context.Context, id int, deletedBy int) error 
 		Updates(map[string]interface{}{
 			"IsActive":     false,
 			"UpdatedAt":    time.Now(),
-			"UpdatedBy":    deletedBy,
-			"Name":         nil,
-			"Email":        nil,
-			"PasswordHash": nil,
-			"MicrosoftId":  nil,
-			"UserType":     nil,
+			"Name":         " - ",
+			"Email":        " - ",
+			"PasswordHash": " - ",
+			"MicrosoftId":  " - ",
+			"UserType":     " - ",
 		})
 
 	if result.Error != nil {
@@ -204,6 +201,16 @@ func (s *Internal) DeleteUser(ctx context.Context, id int, deletedBy int) error 
 
 	if result.RowsAffected == 0 {
 		return fmt.Errorf("user not found")
+	}
+
+	result2 := s.db_bkp.WithContext(ctx).
+		Table("dbo.Log_LGPD").
+		Create(map[string]interface{}{
+			"UserId": id,
+		})
+
+	if result2.Error != nil {
+		return fmt.Errorf("failed to create LGPD log: %w", result2.Error)
 	}
 
 	return nil

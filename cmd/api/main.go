@@ -29,7 +29,7 @@ import (
 // @host      localhost:8080
 // @BasePath  /
 
-// @securityDefinitions.BearerAuth
+// @securityDefinitions.apiKey BearerAuth
 // @in header
 // @type http
 // @name Authorization
