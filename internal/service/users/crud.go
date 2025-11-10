@@ -379,12 +379,6 @@ func UpdateUser(cfg *config.App) gin.HandlerFunc {
 			user.IsActive = *req.IsActive
 		}
 
-		// Pegar ID do usuário autenticado
-		currentUserId, _ := c.Get("user_id")
-		if uid, ok := currentUserId.(int); ok {
-			user.UpdatedBy = &uid
-		}
-
 		// Atualizar senha se fornecida
 		if req.Password != nil {
 			hash, err := bcrypt.GenerateFromPassword([]byte(*req.Password), bcrypt.DefaultCost)
@@ -402,20 +396,19 @@ func UpdateUser(cfg *config.App) gin.HandlerFunc {
 				return
 			}
 
-			if user.UpdatedBy != nil {
-				if err := cfg.SqlServer.UpdatePassword(c.Request.Context(), id, string(hash), *user.UpdatedBy); err != nil {
-					c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-						BaseResponse: dto.BaseResponse{
-							Success:   false,
-							Timestamp: time.Now(),
-						},
-						Error:   "Internal Server Error",
-						Code:    http.StatusInternalServerError,
-						Message: "Failed to update password",
-						Details: err.Error(),
-					})
-					return
-				}
+			if err := cfg.SqlServer.UpdatePassword(c.Request.Context(), id, string(hash), 0); err != nil {
+				c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+					BaseResponse: dto.BaseResponse{
+						Success:   false,
+						Timestamp: time.Now(),
+					},
+					Error:   "Internal Server Error",
+					Code:    http.StatusInternalServerError,
+					Message: "Failed to update password",
+					Details: err.Error(),
+				})
+				return
+
 			}
 		}
 
