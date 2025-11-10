@@ -6,6 +6,7 @@ import (
 	"orderstreamrest/internal/models/entities"
 	"time"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -189,9 +190,9 @@ func (s *Internal) DeleteUser(ctx context.Context, id int, deletedBy int) error 
 			"IsActive":     false,
 			"UpdatedAt":    time.Now(),
 			"Name":         " - ",
-			"Email":        " - ",
-			"PasswordHash": " - ",
-			"MicrosoftId":  " - ",
+			"Email":        uuid.New().String() + "@deleted.local",
+			"PasswordHash": uuid.New().String() + "@deleted.local",
+			"MicrosoftId":  uuid.New().String() + "@deleted.local",
 			"UserType":     " - ",
 		})
 
@@ -203,14 +204,27 @@ func (s *Internal) DeleteUser(ctx context.Context, id int, deletedBy int) error 
 		return fmt.Errorf("user not found")
 	}
 
-	result2 := s.db_bkp.WithContext(ctx).
+	// Verifica se já existe o log LGPD para o usuário
+	var count int64
+	err := s.db_bkp.WithContext(ctx).
 		Table("dbo.Log_LGPD").
-		Create(map[string]interface{}{
-			"UserId": id,
-		})
+		Where("UserId = ?", id).
+		Count(&count).Error
 
-	if result2.Error != nil {
-		return fmt.Errorf("failed to create LGPD log: %w", result2.Error)
+	if err != nil {
+		return fmt.Errorf("failed to check LGPD log: %w", err)
+	}
+
+	if count == 0 {
+		result2 := s.db_bkp.WithContext(ctx).
+			Table("dbo.Log_LGPD").
+			Create(map[string]interface{}{
+				"UserId": id,
+			})
+
+		if result2.Error != nil {
+			return fmt.Errorf("failed to create LGPD log: %w", result2.Error)
+		}
 	}
 
 	return nil
@@ -227,21 +241,4 @@ func (s *Internal) CreateAuthLog(ctx context.Context, log *entities.UserAuthLog)
 	}
 
 	return nil
-}
-
-// GetUserAuthLogs retorna os logs de autenticação de um usuário
-func (s *Internal) GetUserAuthLogs(ctx context.Context, userId int, limit int) ([]entities.UserAuthLog, error) {
-	var logs []entities.UserAuthLog
-	err := s.db.WithContext(ctx).
-		Table("dbo.UserAuthLogs").
-		Where("UserId = ?", userId).
-		Order("CreatedAt DESC").
-		Limit(limit).
-		Find(&logs).Error
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to get auth logs: %w", err)
-	}
-
-	return logs, nil
 }
