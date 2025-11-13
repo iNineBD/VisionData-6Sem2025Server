@@ -1,14 +1,17 @@
 package users
 
 import (
+	"fmt"
 	"net/http"
 	"orderstreamrest/internal/config"
 	"orderstreamrest/internal/models/dto"
 	"orderstreamrest/internal/models/entities"
+	"orderstreamrest/internal/utils"
 	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -44,8 +47,22 @@ func CreateUser(cfg *config.App) gin.HandlerFunc {
 			return
 		}
 
-		// Validar que pelo menos senha ou MicrosoftId foi fornecido
-		if req.Password == nil && req.MicrosoftId == nil {
+		if _, ok := utils.UserTypMapStrToInt[req.UserType]; !ok {
+			c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+				BaseResponse: dto.BaseResponse{
+					Success:   false,
+					Timestamp: time.Now(),
+				},
+				Error:   "Bad Request",
+				Code:    http.StatusBadRequest,
+				Message: "Invalid parameter",
+				Details: fmt.Errorf("The parameter 'userType' must be %v", utils.UserTypMapIntToStr),
+			})
+			return
+		}
+
+		// Validar que pelo menos senha foi fornecido
+		if req.Password == nil {
 			c.JSON(http.StatusBadRequest, dto.ErrorResponse{
 				BaseResponse: dto.BaseResponse{
 					Success:   false,
@@ -94,21 +111,22 @@ func CreateUser(cfg *config.App) gin.HandlerFunc {
 			passwordHash = &hashStr
 		}
 
-		// Pegar ID do usuário autenticado (assumindo que está no contexto)
-		currentUserId, _ := c.Get("user_id")
-		var createdBy *int
-		if id, ok := currentUserId.(int); ok {
-			createdBy = &id
-		}
+		// // Pegar ID do usuário autenticado (assumindo que está no contexto)
+		// currentUserId, _ := c.Get("user_id")
+		// var createdBy *int
+		// if id, ok := currentUserId.(int); ok {
+		// 	createdBy = &id
+		// }
 
+		temp := "pegadinha do malandro" + uuid.New().String()
 		user := &entities.User{
 			Name:         req.Name,
 			Email:        req.Email,
 			PasswordHash: passwordHash,
 			UserType:     req.UserType,
-			MicrosoftId:  req.MicrosoftId,
+			MicrosoftId:  &temp,
 			IsActive:     true,
-			CreatedBy:    createdBy,
+			// CreatedBy:    createdBy,
 		}
 
 		id, err := cfg.SqlServer.CreateUser(c.Request.Context(), user)
@@ -329,6 +347,20 @@ func UpdateUser(cfg *config.App) gin.HandlerFunc {
 				Code:    http.StatusBadRequest,
 				Message: "Invalid request body",
 				Details: err.Error(),
+			})
+			return
+		}
+
+		if _, ok := utils.UserTypMapStrToInt[*req.UserType]; !ok {
+			c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+				BaseResponse: dto.BaseResponse{
+					Success:   false,
+					Timestamp: time.Now(),
+				},
+				Error:   "Bad Request",
+				Code:    http.StatusBadRequest,
+				Message: "Invalid parameter",
+				Details: fmt.Errorf("The parameter 'userType' must be %v", utils.UserTypMapIntToStr),
 			})
 			return
 		}

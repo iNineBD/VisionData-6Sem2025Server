@@ -63,7 +63,7 @@ func DecodeTokenJWT(token string) (jwt.MapClaims, error) {
 }
 
 // Auth is a middleware function that checks for a valid JWT token in the Authorization header
-func Auth() gin.HandlerFunc {
+func Auth(minAccesScope int64) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		token := c.GetHeader("Authorization")
 		if token == "" {
@@ -85,6 +85,29 @@ func Auth() gin.HandlerFunc {
 		if err != nil {
 			authError := dto.NewAuthErrorResponse(c, "Invalid token")
 			c.AbortWithStatusJSON(http.StatusUnauthorized, authError)
+			return
+		}
+
+		if claims["role"] == nil {
+			authError := dto.NewAuthErrorResponse(c, "Invalid token: missing role")
+			c.AbortWithStatusJSON(http.StatusUnauthorized, authError)
+			return
+		}
+
+		userRoleInt, ok := claims["role"].(int64)
+		if !ok {
+			userRoleFloatConv, okConv := claims["role"].(float64)
+			if !okConv {
+				authError := dto.NewAuthErrorResponse(c, "Invalid token: invalid role type")
+				c.AbortWithStatusJSON(http.StatusUnauthorized, authError)
+				return
+			}
+			userRoleInt = int64(userRoleFloatConv)
+		}
+
+		if userRoleInt >= minAccesScope {
+			authError := dto.NewAuthErrorResponse(c, "Insufficient permissions")
+			c.AbortWithStatusJSON(http.StatusForbidden, authError)
 			return
 		}
 

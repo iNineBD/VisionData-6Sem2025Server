@@ -16,6 +16,8 @@ import (
 // InitiateRoutes is a function that initializes the routes for the application
 func InitiateRoutes(engine *gin.Engine, cfg *config.App) {
 
+	users.InitOAuthConfig()
+
 	engine.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	healthGroup := engine.Group("/healthcheck")
@@ -23,7 +25,7 @@ func InitiateRoutes(engine *gin.Engine, cfg *config.App) {
 		healthGroup.GET("/", healthcheck.Health(cfg))
 	}
 
-	metricsGroup := engine.Group("/metrics", middleware.Auth())
+	metricsGroup := engine.Group("/metrics", middleware.Auth(1))
 	{
 		metricsGroup.GET("/tickets", metrics.GetTicketsMetrics(cfg))
 		metricsGroup.GET("/tickets/mean-time-resolution-by-priority", metrics.MeanTimeByPriority(cfg))
@@ -32,13 +34,13 @@ func InitiateRoutes(engine *gin.Engine, cfg *config.App) {
 		metricsGroup.GET("/tickets/qtd-tickets-by-priority-year-month", metrics.TicketsByPriorityAndMonth(cfg))
 	}
 
-	ticketsGroup := engine.Group("/tickets", middleware.Auth())
+	ticketsGroup := engine.Group("/tickets", middleware.Auth(1))
 	{
 		ticketsGroup.GET("/:id", tickets.SearchTicketByID(cfg))
 		ticketsGroup.GET("/query", tickets.GetByWord(cfg))
 	}
 
-	userRoutes := engine.Group("/users", middleware.Auth())
+	userRoutes := engine.Group("/users", middleware.Auth(2))
 	{
 		userRoutes.POST("", users.CreateUser(cfg))
 		userRoutes.GET("", users.GetAllUsers(cfg))
@@ -51,8 +53,11 @@ func InitiateRoutes(engine *gin.Engine, cfg *config.App) {
 
 	authRoutes := engine.Group("/auth")
 	{
-		authRoutes.POST("/login", users.Login(cfg))
-		// authRoutes.POST("/microsoft", users.MicrosoftAuth(cfg))
+		authRoutes.POST("/login", users.LoginHandler(cfg))
+
+		authRoutes.GET("/microsoft/login", users.MicrosoftLoginHandler())
+
+		authRoutes.GET("/microsoft/callback", users.MicrosoftCallbackHandler(cfg))
 	}
 
 }
