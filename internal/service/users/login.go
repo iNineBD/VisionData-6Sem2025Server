@@ -565,6 +565,8 @@ func MicrosoftCallbackHandler(cfg *config.App) gin.HandlerFunc {
 			url.QueryEscape(user.Name),
 			url.QueryEscape(user.UserType),
 		)
+		// Exemplo de URL gerada:
+		// https://meusite.com/poslogin?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...&id=123&email=joao%40exemplo.com&name=Joao+Silva&role=admin
 
 		c.Redirect(http.StatusFound, redirectURL)
 	}
