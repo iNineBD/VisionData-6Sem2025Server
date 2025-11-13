@@ -9,7 +9,7 @@ import "time"
 // CreateUserRequest representa a requisição de criação de usuário
 type CreateUserRequest struct {
 	Name     string  `json:"name" binding:"required,min=3,max=200" example:"João Silva"`
-	Email    string  `json:"email" binding:"required,email,max=255" example:"joao.silva@example.com"`
+	Email    string  `json:"email" binding:"required,email,max=255" example:"joao@example.com"`
 	Password *string `json:"password,omitempty" binding:"omitempty,min=8,max=100" example:"SenhaSegura@123"`
 	UserType string  `json:"userType" binding:"required,oneof=ADMIN MANAGER SUPPORT" example:"SUPPORT" enums:"ADMIN,MANAGER,SUPPORT"`
 	// MicrosoftId *string `json:"microsoftId,omitempty" binding:"omitempty,max=255" example:"a1b2c3d4-e5f6-7890-abcd-ef1234567890"`
@@ -36,7 +36,7 @@ type ChangePasswordRequest struct {
 
 // LoginRequest representa a requisição de login
 type LoginRequest struct {
-	Email            string `json:"email" binding:"required,email" example:"joao.silva@example.com"`
+	Email            string `json:"email" binding:"required,email" example:"joao@example.com"`
 	Password         string `json:"password" binding:"required" example:"SenhaSegura@123"`
 	LoginType        string `json:"login_type" binding:"required,oneof=password microsoft" example:"password"`
 	MicrosoftIDToken string `json:"microsoft_id_token,omitempty" example:"eyJhbGciOi..."` // optional for microsoft flow when front handles OAuth; not needed when backend-only
@@ -55,7 +55,7 @@ type MicrosoftAuthRequest struct {
 type UserResponse struct {
 	Id          int        `json:"id" example:"1"`
 	Name        string     `json:"name" example:"João Silva"`
-	Email       string     `json:"email" example:"joao.silva@example.com"`
+	Email       string     `json:"email" example:"joao@example.com"`
 	UserType    string     `json:"userType" example:"AGENT" enums:"ADMIN,MANAGER,AGENT,VIEWER"`
 	MicrosoftId *string    `json:"microsoftId,omitempty" example:"a1b2c3d4-e5f6-7890-abcd-ef1234567890"`
 	IsActive    bool       `json:"isActive" example:"true"`
