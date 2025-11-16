@@ -94,7 +94,7 @@ func Auth(minAccesScope int64) gin.HandlerFunc {
 			return
 		}
 
-		userRoleInt, ok := claims["role"].(int64)
+		/*userRoleInt, ok := claims["role"].(int64)
 		if !ok {
 			userRoleFloatConv, okConv := claims["role"].(float64)
 			if !okConv {
@@ -105,7 +105,7 @@ func Auth(minAccesScope int64) gin.HandlerFunc {
 			userRoleInt = int64(userRoleFloatConv)
 		}
 
-		/*if userRoleInt >= minAccesScope {
+		if userRoleInt >= minAccesScope {
 			authError := dto.NewAuthErrorResponse(c, "Insufficient permissions")
 			c.AbortWithStatusJSON(http.StatusForbidden, authError)
 			return
