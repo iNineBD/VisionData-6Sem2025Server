@@ -398,8 +398,6 @@ func validateMicrosoftIDToken(ctx context.Context, idToken string) (*MicrosoftCl
 // OAuth2 config & helpers
 // ---------------------------
 
-var oauthConfig *oauth2.Config
-
 func InitOAuthConfig() {
 	clientID := os.Getenv("MICROSOFT_CLIENT_ID")
 	clientSecret := os.Getenv("MICROSOFT_CLIENT_SECRET")
@@ -409,7 +407,7 @@ func InitOAuthConfig() {
 		log.Fatal("MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET and REDIRECT_URL must be set")
 	}
 
-	oauthConfig = &oauth2.Config{
+	microsoftOauthConfig = &oauth2.Config{
 		ClientID:     clientID,
 		ClientSecret: clientSecret,
 		RedirectURL:  redirectURL,

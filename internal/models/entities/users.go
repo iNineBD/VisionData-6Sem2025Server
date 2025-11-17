@@ -19,7 +19,7 @@ type User struct {
 
 // TableName especifica o nome da tabela no banco
 func (User) TableName() string {
-	return "dbo.Users"
+	return "dbo.tb_users"
 }
 
 // UserAuthLog representa um log de autenticação

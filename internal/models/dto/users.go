@@ -8,10 +8,11 @@ import "time"
 
 // CreateUserRequest representa a requisição de criação de usuário
 type CreateUserRequest struct {
-	Name     string  `json:"name" binding:"required,min=3,max=200" example:"João Silva"`
-	Email    string  `json:"email" binding:"required,email,max=255" example:"joao@example.com"`
-	Password *string `json:"password,omitempty" binding:"omitempty,min=8,max=100" example:"SenhaSegura@123"`
-	UserType string  `json:"userType" binding:"required,oneof=ADMIN MANAGER SUPPORT" example:"SUPPORT" enums:"ADMIN,MANAGER,SUPPORT"`
+	Name        string             `json:"name" binding:"required,min=3,max=200" example:"João Silva"`
+	Email       string             `json:"email" binding:"required,email,max=255" example:"joao@example.com"`
+	Password    *string            `json:"password,omitempty" binding:"omitempty,min=8,max=100" example:"SenhaSegura@123"`
+	UserType    string             `json:"userType" binding:"required,oneof=ADMIN MANAGER SUPPORT" example:"SUPPORT" enums:"ADMIN,MANAGER,SUPPORT"`
+	TermConsent UserConsentRequest `json:"termConsent" binding:"required"` // Consentimento obrigatório
 	// MicrosoftId *string `json:"microsoftId,omitempty" binding:"omitempty,max=255" example:"a1b2c3d4-e5f6-7890-abcd-ef1234567890"`
 }
 

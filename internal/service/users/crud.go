@@ -75,6 +75,60 @@ func CreateUser(cfg *config.App) gin.HandlerFunc {
 			return
 		}
 
+		// Validar consentimento dos termos
+		if req.TermConsent.TermId == 0 || len(req.TermConsent.ItemConsents) == 0 {
+			c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+				BaseResponse: dto.BaseResponse{
+					Success:   false,
+					Timestamp: time.Now(),
+				},
+				Error:   "Bad Request",
+				Code:    http.StatusBadRequest,
+				Message: "Term consent is required for registration",
+			})
+			return
+		}
+
+		// Verificar se o termo existe e está ativo
+		term, err := cfg.SqlServer.GetTermByID(c.Request.Context(), req.TermConsent.TermId)
+		if err != nil || !term.IsActive {
+			c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+				BaseResponse: dto.BaseResponse{
+					Success:   false,
+					Timestamp: time.Now(),
+				},
+				Error:   "Bad Request",
+				Code:    http.StatusBadRequest,
+				Message: "Invalid or inactive term",
+			})
+			return
+		}
+
+		// Validar que o item obrigatório foi aceito
+		hasAcceptedMandatory := false
+		for _, itemConsent := range req.TermConsent.ItemConsents {
+			// Buscar o item no termo
+			for _, termItem := range term.Items {
+				if termItem.Id == itemConsent.ItemId && termItem.IsMandatory && itemConsent.Accepted {
+					hasAcceptedMandatory = true
+					break
+				}
+			}
+		}
+
+		if !hasAcceptedMandatory {
+			c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+				BaseResponse: dto.BaseResponse{
+					Success:   false,
+					Timestamp: time.Now(),
+				},
+				Error:   "Bad Request",
+				Code:    http.StatusBadRequest,
+				Message: "You must accept the mandatory term item to register",
+			})
+			return
+		}
+
 		// Verificar se email já existe
 		existingUser, _ := cfg.SqlServer.GetUserByEmail(c.Request.Context(), req.Email)
 		if existingUser != nil {
@@ -139,6 +193,45 @@ func CreateUser(cfg *config.App) gin.HandlerFunc {
 				Error:   "Internal Server Error",
 				Code:    http.StatusInternalServerError,
 				Message: "Failed to create user",
+				Details: err.Error(),
+			})
+			return
+		}
+
+		// Registrar consentimento dos termos
+		ipAddress := c.ClientIP()
+		userAgent := c.GetHeader("User-Agent")
+
+		consent := &entities.UserTermConsent{
+			UserId:       id,
+			TermId:       req.TermConsent.TermId,
+			ConsentDate:  time.Now(),
+			IsActive:     true,
+			IPAddress:    &ipAddress,
+			UserAgent:    &userAgent,
+			ItemConsents: []entities.UserItemConsent{},
+		}
+
+		for _, itemConsent := range req.TermConsent.ItemConsents {
+			consent.ItemConsents = append(consent.ItemConsents, entities.UserItemConsent{
+				ItemId:      itemConsent.ItemId,
+				Accepted:    itemConsent.Accepted,
+				ConsentDate: time.Now(),
+			})
+		}
+
+		err = cfg.SqlServer.RegisterUserConsent(c.Request.Context(), consent)
+		if err != nil {
+			// Se falhar ao registrar consentimento, reverter criação do usuário
+			// Aqui você pode implementar uma lógica de rollback se necessário
+			c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+				BaseResponse: dto.BaseResponse{
+					Success:   false,
+					Timestamp: time.Now(),
+				},
+				Error:   "Internal Server Error",
+				Code:    http.StatusInternalServerError,
+				Message: "Failed to register term consent",
 				Details: err.Error(),
 			})
 			return

@@ -105,7 +105,10 @@ func Auth(minAccesScope int64) gin.HandlerFunc {
 			userRoleInt = int64(userRoleFloatConv)
 		}
 
-		if userRoleInt >= minAccesScope {
+		// Roles: 1=ADMIN, 2=MANAGER, 3=SUPPORT
+		// minAccesScope define a role MÁXIMA permitida (números maiores = menos permissões)
+		// Se userRole > minAccesScope, significa que o usuário tem MENOS permissão do que o necessário
+		if userRoleInt > minAccesScope {
 			authError := dto.NewAuthErrorResponse(c, "Insufficient permissions")
 			c.AbortWithStatusJSON(http.StatusForbidden, authError)
 			return
