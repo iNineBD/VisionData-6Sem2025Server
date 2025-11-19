@@ -240,9 +240,24 @@ func CreateTerm(cfg *config.App) gin.HandlerFunc {
 			}
 		}
 
-		effectiveDate := time.Now()
+		createdAt := time.Now()
+		effectiveDate := createdAt
 		if req.EffectiveDate != nil {
 			effectiveDate = *req.EffectiveDate
+
+			// Validar que a data de vigência não pode ser menor que a data de criação
+			if effectiveDate.Before(createdAt) {
+				c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+					BaseResponse: dto.BaseResponse{
+						Success:   false,
+						Timestamp: time.Now(),
+					},
+					Error:   "Bad Request",
+					Code:    http.StatusBadRequest,
+					Message: "Effective date cannot be before creation date",
+				})
+				return
+			}
 		}
 
 		term := &entities.TermsOfUse{
@@ -250,9 +265,9 @@ func CreateTerm(cfg *config.App) gin.HandlerFunc {
 			Title:         req.Title,
 			Description:   req.Description,
 			Content:       req.Content,
-			IsActive:      true,
+			IsActive:      true, // Sempre criar como ativo, repositório decide depois se deve desativar
 			EffectiveDate: effectiveDate,
-			CreatedAt:     time.Now(),
+			CreatedAt:     createdAt,
 			CreatedBy:     createdBy,
 			Items:         []entities.TermItem{},
 		}
@@ -264,7 +279,7 @@ func CreateTerm(cfg *config.App) gin.HandlerFunc {
 				Content:     itemReq.Content,
 				IsMandatory: itemReq.IsMandatory,
 				IsActive:    true,
-				CreatedAt:   time.Now(),
+				CreatedAt:   createdAt,
 			})
 		}
 
@@ -320,89 +335,6 @@ func CreateTerm(cfg *config.App) gin.HandlerFunc {
 			},
 			Data:    response,
 			Message: "Term created successfully",
-		})
-	}
-}
-
-// GetTermStatistics retorna estatísticas de um termo
-// @Summary      Estatísticas do Termo
-// @Description  Retorna estatísticas de consentimento de um termo (apenas administradores)
-// @Tags         terms
-// @Accept       json
-// @Produce      json
-// @Security 	 BearerAuth
-// @Param        id path int true "ID do termo"
-// @Success      200 {object} dto.SuccessResponse{data=dto.TermStatisticsResponse}
-// @Failure 	 400 {object} dto.ErrorResponse "Bad Request"
-// @Failure 	 401 {object} dto.AuthErrorResponse "Unauthorized"
-// @Failure 	 403 {object} dto.ErrorResponse "Forbidden"
-// @Failure 	 404 {object} dto.ErrorResponse "Not Found"
-// @Failure 	 500 {object} dto.ErrorResponse "Internal Server Error"
-// @Router       /terms/{id}/statistics [get]
-func GetTermStatistics(cfg *config.App) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		idParam := c.Param("id")
-		termId, err := strconv.Atoi(idParam)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-				BaseResponse: dto.BaseResponse{
-					Success:   false,
-					Timestamp: time.Now(),
-				},
-				Error:   "Bad Request",
-				Code:    http.StatusBadRequest,
-				Message: "Invalid term ID",
-			})
-			return
-		}
-
-		// Verificar se termo existe
-		term, err := cfg.SqlServer.GetTermByID(c.Request.Context(), termId)
-		if err != nil {
-			c.JSON(http.StatusNotFound, dto.ErrorResponse{
-				BaseResponse: dto.BaseResponse{
-					Success:   false,
-					Timestamp: time.Now(),
-				},
-				Error:   "Not Found",
-				Code:    http.StatusNotFound,
-				Message: "Term not found",
-			})
-			return
-		}
-
-		stats, err := cfg.SqlServer.GetTermStatistics(c.Request.Context(), termId)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-				BaseResponse: dto.BaseResponse{
-					Success:   false,
-					Timestamp: time.Now(),
-				},
-				Error:   "Internal Server Error",
-				Code:    http.StatusInternalServerError,
-				Message: "Failed to get statistics",
-				Details: err.Error(),
-			})
-			return
-		}
-
-		response := dto.TermStatisticsResponse{
-			TermId:              term.Id,
-			TermVersion:         term.Version,
-			TotalUsers:          int(stats["totalUsers"].(int64)),
-			UsersWithConsent:    int(stats["usersWithConsent"].(int64)),
-			UsersWithoutConsent: int(stats["usersWithoutConsent"].(int64)),
-			ConsentRate:         stats["consentRate"].(float64),
-			LastUpdate:          time.Now(),
-		}
-
-		c.JSON(http.StatusOK, dto.SuccessResponse{
-			BaseResponse: dto.BaseResponse{
-				Success:   true,
-				Timestamp: time.Now(),
-			},
-			Data:    response,
-			Message: "Statistics retrieved successfully",
 		})
 	}
 }

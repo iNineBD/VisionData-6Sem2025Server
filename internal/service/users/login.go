@@ -120,7 +120,7 @@ func LoginHandler(a *config.App) gin.HandlerFunc {
 			// 1) Your backend did the OAuth flow and you already have the id_token -> the front POSTs it here.
 			// 2) Or front didn't touch MS and this endpoint will be used only when you want front to POST id_token.
 			// In our preferred backend-only flow, the backend handles entire OAuth and you won't use this branch.
-			if req.MicrosoftIDToken == "" {
+			if req.MicrosoftIDToken == nil || *req.MicrosoftIDToken == "" {
 				c.JSON(http.StatusBadRequest, dto.ErrorResponse{
 					BaseResponse: dto.BaseResponse{Success: false, Timestamp: time.Now()},
 					Error:        "Bad Request",
@@ -130,7 +130,7 @@ func LoginHandler(a *config.App) gin.HandlerFunc {
 				return
 			}
 
-			claims, err := validateMicrosoftIDToken(ctx, req.MicrosoftIDToken)
+			claims, err := validateMicrosoftIDToken(ctx, *req.MicrosoftIDToken)
 			if err != nil {
 				c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
 					BaseResponse: dto.BaseResponse{Success: false, Timestamp: time.Now()},

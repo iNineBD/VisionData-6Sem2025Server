@@ -16,20 +16,17 @@ import (
 )
 
 // CreateUser cria um novo usuário
-// @Summary      Criar Usuário
-// @Description  Cria um novo usuário no sistema
-// @Tags         users
+// @Summary      Registrar Novo Usuário
+// @Description  Cria um novo usuário no sistema (endpoint público para registro)
+// @Tags         auth
 // @Accept       json
 // @Produce      json
-// @Security 	 BearerAuth
 // @Param        user body dto.CreateUserRequest true "Dados do usuário"
 // @Success      201 {object} dto.SuccessResponse{data=dto.UserCreatedResponse}
 // @Failure 	 400 {object} dto.ErrorResponse "Bad Request"
-// @Failure 	 401 {object} dto.AuthErrorResponse "Unauthorized"
-// @Failure 	 403 {object} dto.ErrorResponse "Forbidden"
 // @Failure 	 409 {object} dto.ErrorResponse "Conflict - Email já existe"
 // @Failure 	 500 {object} dto.ErrorResponse "Internal Server Error"
-// @Router       /users [post]
+// @Router       /auth/register [post]
 func CreateUser(cfg *config.App) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req dto.CreateUserRequest

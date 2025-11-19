@@ -43,7 +43,6 @@ func InitiateRoutes(engine *gin.Engine, cfg *config.App) {
 
 	userRoutes := engine.Group("/users", middleware.Auth(2))
 	{
-		userRoutes.POST("", users.CreateUser(cfg))
 		userRoutes.GET("", users.GetAllUsers(cfg))
 		userRoutes.GET("/:id", users.GetUser(cfg))
 		userRoutes.PUT("/:id", users.UpdateUser(cfg))
@@ -60,26 +59,22 @@ func InitiateRoutes(engine *gin.Engine, cfg *config.App) {
 
 		authRoutes.GET("/microsoft/callback", users.MicrosoftCallbackHandler(cfg))
 
-		// Endpoint público para obter o termo ativo (necessário para cadastro de usuários)
 		authRoutes.GET("/terms/active", terms.GetActiveTerm(cfg))
+
+		authRoutes.POST("/register", users.CreateUser(cfg))
 	}
 
-	// Rotas de termos de uso (gerenciamento)
 	termsRoutes := engine.Group("/terms", middleware.Auth(1))
 	{
-		// Gerenciamento: apenas ADMIN (role <= 1)
 		termsRoutes.GET("", terms.ListTerms(cfg))
 		termsRoutes.POST("", terms.CreateTerm(cfg))
-		termsRoutes.GET("/:id/statistics", terms.GetTermStatistics(cfg))
 	}
 
-	// Rotas de consentimento (role <= 3: ADMIN e SUPPORT)
 	consentsRoutes := engine.Group("/consents", middleware.Auth(3))
 	{
-		// Rotas do próprio usuário
+
 		consentsRoutes.GET("/me", terms.GetMyConsentStatus(cfg))
 
-		// Rota ADMIN para consultar consentimento de outros usuários (role <= 1: apenas ADMIN)
 		consentsRoutes.GET("/user/:userId", middleware.Auth(1), terms.GetUserConsent(cfg))
 	}
 

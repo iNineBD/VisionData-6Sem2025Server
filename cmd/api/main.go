@@ -47,7 +47,7 @@ import (
 func main() {
 
 	if os.Getenv("ENVIRONMENT_APP") == "" {
-		_ = godotenv.Load("******")
+		_ = godotenv.Load("/home/eduardo/Documents/Repos/VisionData-6Sem2025Server/.env")
 	}
 
 	fmt.Printf("Environment: %s\n", os.Getenv("ENVIRONMENT_APP"))

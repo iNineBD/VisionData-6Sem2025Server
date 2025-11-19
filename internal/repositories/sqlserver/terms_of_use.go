@@ -10,13 +10,14 @@ import (
 	"gorm.io/gorm"
 )
 
-// GetActiveTermWithItems retorna o termo ativo e com a data de efetivação mais recente
+// GetActiveTermWithItems retorna o termo ativo baseado na data de vigência
 func (i *Internal) GetActiveTermWithItems(ctx context.Context) (*entities.TermsOfUse, error) {
 	var term entities.TermsOfUse
 
+	// Buscar o termo que está marcado como ativo
+	// A flag IsActive é gerenciada automaticamente baseada na data de vigência
 	err := i.db.WithContext(ctx).
 		Where("IsActive = ?", true).
-		Order("EffectiveDate DESC, CreatedAt DESC").
 		First(&term).Error
 
 	if err != nil {
@@ -202,6 +203,90 @@ func (i *Internal) CreateTerm(ctx context.Context, term *entities.TermsOfUse) er
 		// Restaurar os itens no objeto original
 		term.Items = items
 
+		// Recalcular qual termo deve estar ativo baseado na data de vigência
+		// Garantir que sempre exista pelo menos 1 termo ativo
+		now := time.Now()
+
+		// Buscar todos os termos ativos no momento
+		var activeTerms []entities.TermsOfUse
+		err = tx.Model(&entities.TermsOfUse{}).
+			Where("IsActive = ?", true).
+			Find(&activeTerms).Error
+
+		if err != nil {
+			return fmt.Errorf("falha ao buscar termos ativos: %w", err)
+		}
+
+		// Se já existe algum termo ativo, comparar datas de vigência
+		if len(activeTerms) > 0 {
+			// Desativar todos os termos primeiro
+			err = tx.Model(&entities.TermsOfUse{}).
+				Where("1 = 1").
+				Update("IsActive", false).Error
+
+			if err != nil {
+				return fmt.Errorf("falha ao desativar termos: %w", err)
+			}
+
+			// Encontrar o termo que deve estar ativo:
+			// - Data de vigência <= agora (já entrou em vigor)
+			// - Ordenado por data de vigência DESC (mais recente primeiro)
+			// Usar CAST para comparar apenas a data sem hora
+			var activeTermId int
+			err = tx.Model(&entities.TermsOfUse{}).
+				Select("Id").
+				Where("CAST(EffectiveDate AS DATE) <= CAST(? AS DATE)", now).
+				Order("EffectiveDate DESC, CreatedAt DESC").
+				Limit(1).
+				Pluck("Id", &activeTermId).Error
+
+			if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+				return fmt.Errorf("falha ao buscar termo ativo: %w", err)
+			}
+
+			// Se encontrou um termo válido, ativá-lo
+			if activeTermId > 0 {
+				err = tx.Model(&entities.TermsOfUse{}).
+					Where("Id = ?", activeTermId).
+					Update("IsActive", true).Error
+
+				if err != nil {
+					return fmt.Errorf("falha ao ativar termo: %w", err)
+				}
+
+				// Atualizar o objeto term se for o termo que acabou de ser criado
+				if term.Id == activeTermId {
+					term.IsActive = true
+				} else {
+					term.IsActive = false
+				}
+			} else {
+				// Nenhum termo com data válida encontrado, ativar o mais recente de todos
+				err = tx.Model(&entities.TermsOfUse{}).
+					Select("Id").
+					Order("CreatedAt DESC").
+					Limit(1).
+					Pluck("Id", &activeTermId).Error
+
+				if err != nil {
+					return fmt.Errorf("falha ao buscar termo mais recente: %w", err)
+				}
+
+				if activeTermId > 0 {
+					err = tx.Model(&entities.TermsOfUse{}).
+						Where("Id = ?", activeTermId).
+						Update("IsActive", true).Error
+
+					if err != nil {
+						return fmt.Errorf("falha ao ativar termo: %w", err)
+					}
+
+					term.IsActive = (term.Id == activeTermId)
+				}
+			}
+		}
+		// Se não existe nenhum termo ativo, o novo termo permanece ativo (já foi criado com IsActive = true)
+
 		return nil
 	})
 }
@@ -352,6 +437,52 @@ func (i *Internal) RevokeUserConsent(ctx context.Context, userId, termId int, re
 	return nil
 }
 
+// RecalculateActiveTerm recalcula qual termo deve estar ativo baseado na data de vigência
+// Útil para ser chamado por schedulers ou tarefas de manutenção
+func (i *Internal) RecalculateActiveTerm(ctx context.Context) error {
+	return i.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		now := time.Now()
+
+		// Desativar todos os termos
+		err := tx.Model(&entities.TermsOfUse{}).
+			Where("1 = 1").
+			Update("IsActive", false).Error
+
+		if err != nil {
+			return fmt.Errorf("falha ao desativar termos: %w", err)
+		}
+
+		// Encontrar o termo que deve estar ativo:
+		// - Data de vigência <= agora (já entrou em vigor)
+		// - Ordenado por data de vigência DESC (mais recente primeiro)
+		// Usar CAST para comparar apenas a data sem hora
+		var activeTermId int
+		err = tx.Model(&entities.TermsOfUse{}).
+			Select("Id").
+			Where("CAST(EffectiveDate AS DATE) <= CAST(? AS DATE)", now).
+			Order("EffectiveDate DESC, CreatedAt DESC").
+			Limit(1).
+			Pluck("Id", &activeTermId).Error
+
+		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+			return fmt.Errorf("falha ao buscar termo ativo: %w", err)
+		}
+
+		// Se encontrou um termo válido, ativá-lo
+		if activeTermId > 0 {
+			err = tx.Model(&entities.TermsOfUse{}).
+				Where("Id = ?", activeTermId).
+				Update("IsActive", true).Error
+
+			if err != nil {
+				return fmt.Errorf("falha ao ativar termo: %w", err)
+			}
+		}
+
+		return nil
+	})
+}
+
 // GetUserConsentHistory retorna o histórico de consentimentos do usuário
 func (i *Internal) GetUserConsentHistory(ctx context.Context, userId int) ([]entities.UserTermConsent, error) {
 	var consents []entities.UserTermConsent
@@ -368,43 +499,4 @@ func (i *Internal) GetUserConsentHistory(ctx context.Context, userId int) ([]ent
 	}
 
 	return consents, nil
-}
-
-// GetTermStatistics retorna estatísticas de consentimento de um termo
-func (i *Internal) GetTermStatistics(ctx context.Context, termId int) (map[string]interface{}, error) {
-	stats := make(map[string]interface{})
-
-	// Total de usuários ativos
-	var totalUsers int64
-	err := i.db.WithContext(ctx).
-		Table("dbo.tb_users").
-		Where("IsActive = ?", true).
-		Count(&totalUsers).Error
-
-	if err != nil {
-		return nil, err
-	}
-
-	// Usuários com consentimento ativo para este termo
-	var usersWithConsent int64
-	err = i.db.WithContext(ctx).
-		Model(&entities.UserTermConsent{}).
-		Where("TermId = ? AND IsActive = ?", termId, true).
-		Count(&usersWithConsent).Error
-
-	if err != nil {
-		return nil, err
-	}
-
-	stats["totalUsers"] = totalUsers
-	stats["usersWithConsent"] = usersWithConsent
-	stats["usersWithoutConsent"] = totalUsers - usersWithConsent
-
-	if totalUsers > 0 {
-		stats["consentRate"] = float64(usersWithConsent) / float64(totalUsers) * 100
-	} else {
-		stats["consentRate"] = 0.0
-	}
-
-	return stats, nil
 }
