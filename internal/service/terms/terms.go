@@ -7,6 +7,7 @@ import (
 	"orderstreamrest/internal/models/dto"
 	"orderstreamrest/internal/models/entities"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -33,7 +34,7 @@ func GetActiveTerm(cfg *config.App) gin.HandlerFunc {
 				},
 				Error:   "Not Found",
 				Code:    http.StatusNotFound,
-				Message: "No active term found",
+				Message: "Nenhum termo ativo encontrado",
 				Details: err.Error(),
 			})
 			return
@@ -70,7 +71,7 @@ func GetActiveTerm(cfg *config.App) gin.HandlerFunc {
 				Timestamp: time.Now(),
 			},
 			Data:    response,
-			Message: "Active term retrieved successfully",
+			Message: "Termo ativo recuperado com sucesso",
 		})
 	}
 }
@@ -111,7 +112,7 @@ func ListTerms(cfg *config.App) gin.HandlerFunc {
 				},
 				Error:   "Internal Server Error",
 				Code:    http.StatusInternalServerError,
-				Message: "Failed to list terms",
+				Message: "Falha ao listar termos",
 				Details: err.Error(),
 			})
 			return
@@ -160,7 +161,7 @@ func ListTerms(cfg *config.App) gin.HandlerFunc {
 				Timestamp: time.Now(),
 			},
 			Data:    response,
-			Message: "Terms listed successfully",
+			Message: "Termos listados com sucesso",
 		})
 	}
 }
@@ -191,15 +192,130 @@ func CreateTerm(cfg *config.App) gin.HandlerFunc {
 				},
 				Error:   "Bad Request",
 				Code:    http.StatusBadRequest,
-				Message: "Invalid request body",
+				Message: "Corpo da requisição inválido",
 				Details: err.Error(),
+			})
+			return
+		}
+
+		// Validar que a versão não está vazia
+		if req.Version == "" {
+			c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+				BaseResponse: dto.BaseResponse{
+					Success:   false,
+					Timestamp: time.Now(),
+				},
+				Error:   "Bad Request",
+				Code:    http.StatusBadRequest,
+				Message: "A versão não pode estar vazia",
+			})
+			return
+		}
+
+		// Validar que o título não está vazio
+		if req.Title == "" {
+			c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+				BaseResponse: dto.BaseResponse{
+					Success:   false,
+					Timestamp: time.Now(),
+				},
+				Error:   "Bad Request",
+				Code:    http.StatusBadRequest,
+				Message: "O título não pode estar vazio",
+			})
+			return
+		}
+
+		// Validar que o conteúdo não está vazio
+		if req.Content == "" {
+			c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+				BaseResponse: dto.BaseResponse{
+					Success:   false,
+					Timestamp: time.Now(),
+				},
+				Error:   "Bad Request",
+				Code:    http.StatusBadRequest,
+				Message: "O conteúdo não pode estar vazio",
+			})
+			return
+		}
+
+		// Validar que existe pelo menos 1 item
+		if len(req.Items) == 0 {
+			c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+				BaseResponse: dto.BaseResponse{
+					Success:   false,
+					Timestamp: time.Now(),
+				},
+				Error:   "Bad Request",
+				Code:    http.StatusBadRequest,
+				Message: "É necessário pelo menos um item",
 			})
 			return
 		}
 
 		// Verificar se tem pelo menos 1 item obrigatório
 		mandatoryCount := 0
+		itemOrders := make(map[int]bool)
+
 		for _, item := range req.Items {
+			// Validar que itemOrder é positivo
+			if item.ItemOrder <= 0 {
+				c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+					BaseResponse: dto.BaseResponse{
+						Success:   false,
+						Timestamp: time.Now(),
+					},
+					Error:   "Bad Request",
+					Code:    http.StatusBadRequest,
+					Message: fmt.Sprintf("A ordem do item deve ser maior que 0, encontrado: %d", item.ItemOrder),
+				})
+				return
+			}
+
+			// Verificar duplicidade de itemOrder
+			if itemOrders[item.ItemOrder] {
+				c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+					BaseResponse: dto.BaseResponse{
+						Success:   false,
+						Timestamp: time.Now(),
+					},
+					Error:   "Bad Request",
+					Code:    http.StatusBadRequest,
+					Message: fmt.Sprintf("Ordem de item duplicada encontrada: %d", item.ItemOrder),
+				})
+				return
+			}
+			itemOrders[item.ItemOrder] = true
+
+			// Validar que título do item não está vazio
+			if item.Title == "" {
+				c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+					BaseResponse: dto.BaseResponse{
+						Success:   false,
+						Timestamp: time.Now(),
+					},
+					Error:   "Bad Request",
+					Code:    http.StatusBadRequest,
+					Message: fmt.Sprintf("O item na ordem %d deve ter um título", item.ItemOrder),
+				})
+				return
+			}
+
+			// Validar que conteúdo do item não está vazio
+			if item.Content == "" {
+				c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+					BaseResponse: dto.BaseResponse{
+						Success:   false,
+						Timestamp: time.Now(),
+					},
+					Error:   "Bad Request",
+					Code:    http.StatusBadRequest,
+					Message: fmt.Sprintf("O item '%s' deve ter conteúdo", item.Title),
+				})
+				return
+			}
+
 			if item.IsMandatory {
 				mandatoryCount++
 			}
@@ -213,7 +329,7 @@ func CreateTerm(cfg *config.App) gin.HandlerFunc {
 				},
 				Error:   "Bad Request",
 				Code:    http.StatusBadRequest,
-				Message: "At least one mandatory item is required",
+				Message: "É necessário pelo menos um item obrigatório",
 			})
 			return
 		}
@@ -226,7 +342,7 @@ func CreateTerm(cfg *config.App) gin.HandlerFunc {
 				},
 				Error:   "Bad Request",
 				Code:    http.StatusBadRequest,
-				Message: "Only one mandatory item is allowed per term",
+				Message: "Apenas um item obrigatório é permitido por termo",
 			})
 			return
 		}
@@ -246,7 +362,11 @@ func CreateTerm(cfg *config.App) gin.HandlerFunc {
 			effectiveDate = *req.EffectiveDate
 
 			// Validar que a data de vigência não pode ser menor que a data de criação
-			if effectiveDate.Before(createdAt) {
+			// Compara apenas a data (sem hora) para evitar problemas com timestamps
+			createdDate := time.Date(createdAt.Year(), createdAt.Month(), createdAt.Day(), 0, 0, 0, 0, createdAt.Location())
+			effectiveOnlyDate := time.Date(effectiveDate.Year(), effectiveDate.Month(), effectiveDate.Day(), 0, 0, 0, 0, effectiveDate.Location())
+
+			if effectiveOnlyDate.Before(createdDate) {
 				c.JSON(http.StatusBadRequest, dto.ErrorResponse{
 					BaseResponse: dto.BaseResponse{
 						Success:   false,
@@ -254,7 +374,7 @@ func CreateTerm(cfg *config.App) gin.HandlerFunc {
 					},
 					Error:   "Bad Request",
 					Code:    http.StatusBadRequest,
-					Message: "Effective date cannot be before creation date",
+					Message: "A data de vigência não pode ser anterior à data de criação",
 				})
 				return
 			}
@@ -286,8 +406,29 @@ func CreateTerm(cfg *config.App) gin.HandlerFunc {
 		err := cfg.SqlServer.CreateTerm(c.Request.Context(), term)
 		if err != nil {
 			statusCode := http.StatusInternalServerError
-			if err.Error() == fmt.Sprintf("já existe um termo com a versão %s", req.Version) {
+			message := "Falha ao criar termo"
+
+			// Tratamento de erros específicos
+			errorMsg := err.Error()
+
+			if errorMsg == fmt.Sprintf("já existe um termo com a versão %s", req.Version) {
 				statusCode = http.StatusConflict
+				message = fmt.Sprintf("Já existe um termo com a versão '%s'", req.Version)
+			} else if errorMsg == "é necessário ter pelo menos 1 item obrigatório" {
+				statusCode = http.StatusBadRequest
+				message = "É necessário pelo menos um item obrigatório"
+			} else if errorMsg == "cada termo pode ter apenas 1 item obrigatório" {
+				statusCode = http.StatusBadRequest
+				message = "Apenas um item obrigatório é permitido por termo"
+			} else if strings.Contains(errorMsg, "falha ao desativar termos") {
+				statusCode = http.StatusInternalServerError
+				message = "Falha ao atualizar status do termo"
+			} else if strings.Contains(errorMsg, "falha ao buscar termo ativo") {
+				statusCode = http.StatusInternalServerError
+				message = "Falha ao determinar termo ativo"
+			} else if strings.Contains(errorMsg, "falha ao ativar termo") {
+				statusCode = http.StatusInternalServerError
+				message = "Falha ao ativar termo"
 			}
 
 			c.JSON(statusCode, dto.ErrorResponse{
@@ -297,8 +438,8 @@ func CreateTerm(cfg *config.App) gin.HandlerFunc {
 				},
 				Error:   http.StatusText(statusCode),
 				Code:    statusCode,
-				Message: "Failed to create term",
-				Details: err.Error(),
+				Message: message,
+				Details: errorMsg,
 			})
 			return
 		}
@@ -334,7 +475,7 @@ func CreateTerm(cfg *config.App) gin.HandlerFunc {
 				Timestamp: time.Now(),
 			},
 			Data:    response,
-			Message: "Term created successfully",
+			Message: "Termo criado com sucesso",
 		})
 	}
 }

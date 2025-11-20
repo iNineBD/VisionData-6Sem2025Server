@@ -26,7 +26,8 @@ func InitiateRoutes(engine *gin.Engine, cfg *config.App) {
 		healthGroup.GET("/", healthcheck.Health(cfg))
 	}
 
-	metricsGroup := engine.Group("/metrics", middleware.Auth(1))
+	// Métricas: SUPPORT, MANAGER e ADMIN (Auth(3))
+	metricsGroup := engine.Group("/metrics", middleware.Auth(3))
 	{
 		metricsGroup.GET("/tickets", metrics.GetTicketsMetrics(cfg))
 		metricsGroup.GET("/tickets/mean-time-resolution-by-priority", metrics.MeanTimeByPriority(cfg))
@@ -35,46 +36,49 @@ func InitiateRoutes(engine *gin.Engine, cfg *config.App) {
 		metricsGroup.GET("/tickets/qtd-tickets-by-priority-year-month", metrics.TicketsByPriorityAndMonth(cfg))
 	}
 
-	ticketsGroup := engine.Group("/tickets", middleware.Auth(1))
+	// Tickets: SUPPORT, MANAGER e ADMIN (Auth(3))
+	ticketsGroup := engine.Group("/tickets", middleware.Auth(3))
 	{
 		ticketsGroup.GET("/:id", tickets.SearchTicketByID(cfg))
 		ticketsGroup.GET("/query", tickets.GetByWord(cfg))
 	}
 
+	// Gerenciamento de usuários: MANAGER e ADMIN (Auth(2))
 	userRoutes := engine.Group("/users", middleware.Auth(2))
 	{
 		userRoutes.GET("", users.GetAllUsers(cfg))
 		userRoutes.GET("/:id", users.GetUser(cfg))
 		userRoutes.PUT("/:id", users.UpdateUser(cfg))
 		userRoutes.DELETE("/:id", users.DeleteUser(cfg))
-
-		userRoutes.POST("/change-password", users.ChangePassword(cfg))
 	}
 
+	// Endpoints públicos e autenticados (qualquer usuário logado)
 	authRoutes := engine.Group("/auth")
 	{
+		// Públicos
 		authRoutes.POST("/login", users.LoginHandler(cfg))
-
 		authRoutes.GET("/microsoft/login", users.MicrosoftLoginHandler())
-
 		authRoutes.GET("/microsoft/callback", users.MicrosoftCallbackHandler(cfg))
-
 		authRoutes.GET("/terms/active", terms.GetActiveTerm(cfg))
-
 		authRoutes.POST("/register", users.CreateUser(cfg))
+
+		// Autenticados (qualquer role)
+		authRoutes.POST("/change-password", middleware.Auth(3), users.ChangePassword(cfg))
 	}
 
+	// Gerenciamento de termos: apenas ADMIN (Auth(1))
 	termsRoutes := engine.Group("/terms", middleware.Auth(1))
 	{
 		termsRoutes.GET("", terms.ListTerms(cfg))
 		termsRoutes.POST("", terms.CreateTerm(cfg))
 	}
 
-	consentsRoutes := engine.Group("/consents", middleware.Auth(3))
+	// Consentimentos
+	consentsRoutes := engine.Group("/consents")
 	{
-
-		consentsRoutes.GET("/me", terms.GetMyConsentStatus(cfg))
-
+		// Qualquer usuário autenticado vê seu próprio consentimento
+		consentsRoutes.GET("/me", middleware.Auth(3), terms.GetMyConsentStatus(cfg))
+		// Apenas ADMIN vê consentimento de outros usuários
 		consentsRoutes.GET("/user/:userId", middleware.Auth(1), terms.GetUserConsent(cfg))
 	}
 

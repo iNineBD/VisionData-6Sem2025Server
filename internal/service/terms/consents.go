@@ -39,14 +39,14 @@ func getUserIdFromContext(c *gin.Context) (int, error) {
 	return int(userIdFloat), nil
 }
 
-// GetMyConsentStatus retorna o status de consentimento do usuário autenticado
+// GetMyConsentStatus retorna o status de consentimento do usuário autenticado com termo completo
 // @Summary      Status do Consentimento
-// @Description  Retorna o status de consentimento do usuário autenticado (ADMIN ou SUPPORT)
+// @Description  Retorna o termo de uso ativo completo e o status de consentimento do usuário autenticado
 // @Tags         consents
 // @Accept       json
 // @Produce      json
 // @Security 	 BearerAuth
-// @Success      200 {object} dto.SuccessResponse{data=dto.UserConsentStatusResponse}
+// @Success      200 {object} dto.SuccessResponse{data=dto.MyConsentStatusResponse}
 // @Failure 	 401 {object} dto.AuthErrorResponse "Unauthorized"
 // @Failure 	 403 {object} dto.AuthErrorResponse "Forbidden"
 // @Failure 	 500 {object} dto.ErrorResponse "Internal Server Error"
@@ -63,13 +63,13 @@ func GetMyConsentStatus(cfg *config.App) gin.HandlerFunc {
 				},
 				Error:   "Unauthorized",
 				Code:    http.StatusUnauthorized,
-				Message: "User not authenticated",
+				Message: "Usuário não autenticado",
 			})
 			return
 		}
 
-		// Buscar consentimento ativo do usuário
-		consent, err := cfg.SqlServer.GetUserActiveConsent(c.Request.Context(), userId)
+		// Buscar termo ativo com itens
+		activeTerm, err := cfg.SqlServer.GetActiveTermWithItems(c.Request.Context())
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
 				BaseResponse: dto.BaseResponse{
@@ -78,25 +78,69 @@ func GetMyConsentStatus(cfg *config.App) gin.HandlerFunc {
 				},
 				Error:   "Internal Server Error",
 				Code:    http.StatusInternalServerError,
-				Message: "Failed to get consent status",
+				Message: "Falha ao buscar termo ativo",
 				Details: err.Error(),
 			})
 			return
 		}
 
-		response := dto.UserConsentStatusResponse{
+		response := dto.MyConsentStatusResponse{
 			UserId:           userId,
-			HasActiveConsent: consent != nil,
+			HasActiveConsent: false,
+			NeedsNewConsent:  true,
 		}
 
-		if consent != nil {
-			response.CurrentTermId = &consent.TermId
-			response.CurrentTermVersion = &consent.Term.Version
-			response.CurrentTermTitle = &consent.Term.Title
-			response.ConsentDate = &consent.ConsentDate
-			response.NeedsNewConsent = false
-		} else {
-			response.NeedsNewConsent = true
+		// Converter termo para DTO
+		if activeTerm != nil {
+			termResponse := &dto.TermsOfUseResponse{
+				Id:            activeTerm.Id,
+				Version:       activeTerm.Version,
+				Title:         activeTerm.Title,
+				Description:   activeTerm.Description,
+				Content:       activeTerm.Content,
+				IsActive:      activeTerm.IsActive,
+				EffectiveDate: activeTerm.EffectiveDate,
+				CreatedAt:     activeTerm.CreatedAt,
+				Items:         []dto.TermItemResponse{},
+			}
+
+			// Adicionar itens do termo
+			for _, item := range activeTerm.Items {
+				termResponse.Items = append(termResponse.Items, dto.TermItemResponse{
+					Id:          item.Id,
+					TermId:      item.TermId,
+					ItemOrder:   item.ItemOrder,
+					Title:       item.Title,
+					Content:     item.Content,
+					IsMandatory: item.IsMandatory,
+					IsActive:    item.IsActive,
+				})
+			}
+
+			response.Term = termResponse
+
+			// Buscar consentimento do usuário para este termo
+			consent, err := cfg.SqlServer.GetUserActiveConsent(c.Request.Context(), userId)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+					BaseResponse: dto.BaseResponse{
+						Success:   false,
+						Timestamp: time.Now(),
+					},
+					Error:   "Internal Server Error",
+					Code:    http.StatusInternalServerError,
+					Message: "Falha ao buscar consentimento",
+					Details: err.Error(),
+				})
+				return
+			}
+
+			// Se tem consentimento ativo para o termo atual
+			if consent != nil && consent.TermId == activeTerm.Id {
+				response.HasActiveConsent = true
+				response.NeedsNewConsent = false
+				response.ConsentDate = &consent.ConsentDate
+			}
 		}
 
 		c.JSON(http.StatusOK, dto.SuccessResponse{
@@ -105,7 +149,7 @@ func GetMyConsentStatus(cfg *config.App) gin.HandlerFunc {
 				Timestamp: time.Now(),
 			},
 			Data:    response,
-			Message: "Consent status retrieved successfully",
+			Message: "Status de consentimento recuperado com sucesso",
 		})
 	}
 }

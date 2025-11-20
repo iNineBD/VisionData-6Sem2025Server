@@ -101,6 +101,15 @@ type UserConsentStatusResponse struct {
 	NeedsNewConsent    bool       `json:"needsNewConsent"`
 }
 
+// MyConsentStatusResponse representa o status completo de consentimento do usuário com termo e itens
+type MyConsentStatusResponse struct {
+	UserId           int                 `json:"userId"`
+	HasActiveConsent bool                `json:"hasActiveConsent"`
+	NeedsNewConsent  bool                `json:"needsNewConsent"`
+	Term             *TermsOfUseResponse `json:"term,omitempty"`
+	ConsentDate      *time.Time          `json:"consentDate,omitempty"`
+}
+
 // ListTermsResponse representa a lista de termos (para admin)
 type ListTermsResponse struct {
 	Terms      []TermsOfUseResponse `json:"terms"`
