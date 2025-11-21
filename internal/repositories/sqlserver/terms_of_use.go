@@ -14,9 +14,14 @@ import (
 func (i *Internal) GetActiveTermWithItems(ctx context.Context) (*entities.TermsOfUse, error) {
 	var term entities.TermsOfUse
 
-	// Buscar o termo que está marcado como ativo
-	// A flag IsActive é gerenciada automaticamente baseada na data de vigência
-	err := i.db.WithContext(ctx).
+	// chama  procedure para recalcular o termo ativo
+	err := i.db.WithContext(ctx).Exec("EXEC SP_RecalculateActiveTerm").Error
+	if err != nil {
+		return nil, fmt.Errorf("falha ao recalcular termo ativo: %w", err)
+	}
+
+	// só busc o termo com a flag ativo
+	err = i.db.WithContext(ctx).
 		Where("IsActive = ?", true).
 		First(&term).Error
 
@@ -203,89 +208,12 @@ func (i *Internal) CreateTerm(ctx context.Context, term *entities.TermsOfUse) er
 		// Restaurar os itens no objeto original
 		term.Items = items
 
-		// Recalcular qual termo deve estar ativo baseado na data de vigência
-		// Garantir que sempre exista pelo menos 1 termo ativo
-		now := time.Now()
-
-		// Buscar todos os termos ativos no momento
-		var activeTerms []entities.TermsOfUse
-		err = tx.Model(&entities.TermsOfUse{}).
-			Where("IsActive = ?", true).
-			Find(&activeTerms).Error
-
-		if err != nil {
-			return fmt.Errorf("falha ao buscar termos ativos: %w", err)
+		// busca o status atualizado do termo após a trigger executar
+		var updatedTerm entities.TermsOfUse
+		if err := tx.Select("IsActive").Where("Id = ?", term.Id).First(&updatedTerm).Error; err != nil {
+			return err
 		}
-
-		// Se já existe algum termo ativo, comparar datas de vigência
-		if len(activeTerms) > 0 {
-			// Desativar todos os termos primeiro
-			err = tx.Model(&entities.TermsOfUse{}).
-				Where("1 = 1").
-				Update("IsActive", false).Error
-
-			if err != nil {
-				return fmt.Errorf("falha ao desativar termos: %w", err)
-			}
-
-			// Encontrar o termo que deve estar ativo:
-			// - Data de vigência <= agora (já entrou em vigor)
-			// - Ordenado por data de vigência DESC (mais recente primeiro)
-			// Usar CAST para comparar apenas a data sem hora
-			var activeTermId int
-			err = tx.Model(&entities.TermsOfUse{}).
-				Select("Id").
-				Where("CAST(EffectiveDate AS DATE) <= CAST(? AS DATE)", now).
-				Order("EffectiveDate DESC, CreatedAt DESC").
-				Limit(1).
-				Pluck("Id", &activeTermId).Error
-
-			if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-				return fmt.Errorf("falha ao buscar termo ativo: %w", err)
-			}
-
-			// Se encontrou um termo válido, ativá-lo
-			if activeTermId > 0 {
-				err = tx.Model(&entities.TermsOfUse{}).
-					Where("Id = ?", activeTermId).
-					Update("IsActive", true).Error
-
-				if err != nil {
-					return fmt.Errorf("falha ao ativar termo: %w", err)
-				}
-
-				// Atualizar o objeto term se for o termo que acabou de ser criado
-				if term.Id == activeTermId {
-					term.IsActive = true
-				} else {
-					term.IsActive = false
-				}
-			} else {
-				// Nenhum termo com data válida encontrado, ativar o mais recente de todos
-				err = tx.Model(&entities.TermsOfUse{}).
-					Select("Id").
-					Order("CreatedAt DESC").
-					Limit(1).
-					Pluck("Id", &activeTermId).Error
-
-				if err != nil {
-					return fmt.Errorf("falha ao buscar termo mais recente: %w", err)
-				}
-
-				if activeTermId > 0 {
-					err = tx.Model(&entities.TermsOfUse{}).
-						Where("Id = ?", activeTermId).
-						Update("IsActive", true).Error
-
-					if err != nil {
-						return fmt.Errorf("falha ao ativar termo: %w", err)
-					}
-
-					term.IsActive = (term.Id == activeTermId)
-				}
-			}
-		}
-		// Se não existe nenhum termo ativo, o novo termo permanece ativo (já foi criado com IsActive = true)
+		term.IsActive = updatedTerm.IsActive
 
 		return nil
 	})
