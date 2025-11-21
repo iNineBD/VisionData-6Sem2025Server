@@ -49,7 +49,6 @@ func InitiateRoutes(engine *gin.Engine, cfg *config.App) {
 		userRoutes.GET("", users.GetAllUsers(cfg))
 		userRoutes.GET("/:id", users.GetUser(cfg))
 		userRoutes.PUT("/:id", users.UpdateUser(cfg))
-		userRoutes.DELETE("/:id", users.DeleteUser(cfg))
 	}
 
 	// Endpoints públicos e autenticados (qualquer usuário logado)
@@ -64,6 +63,7 @@ func InitiateRoutes(engine *gin.Engine, cfg *config.App) {
 
 		// Autenticados (qualquer role)
 		authRoutes.POST("/change-password", middleware.Auth(3), users.ChangePassword(cfg))
+		authRoutes.DELETE("/:id", middleware.Auth(3), users.DeleteUser(cfg))
 	}
 
 	// Gerenciamento de termos: apenas ADMIN (Auth(1))
