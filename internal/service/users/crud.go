@@ -53,7 +53,7 @@ func CreateUser(cfg *config.App) gin.HandlerFunc {
 				Error:   "Bad Request",
 				Code:    http.StatusBadRequest,
 				Message: "Invalid parameter",
-				Details: fmt.Errorf("The parameter 'userType' must be %v", utils.UserTypMapIntToStr),
+				Details: fmt.Errorf("the parameter 'userType' must be %v", utils.UserTypMapIntToStr),
 			})
 			return
 		}
@@ -450,7 +450,7 @@ func UpdateUser(cfg *config.App) gin.HandlerFunc {
 				Error:   "Bad Request",
 				Code:    http.StatusBadRequest,
 				Message: "Invalid parameter",
-				Details: fmt.Errorf("The parameter 'userType' must be %v", utils.UserTypMapIntToStr),
+				Details: fmt.Errorf("the parameter 'userType' must be %v", utils.UserTypMapIntToStr),
 			})
 			return
 		}

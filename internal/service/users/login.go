@@ -298,7 +298,9 @@ func validateMicrosoftIDToken(ctx context.Context, idToken string) (*MicrosoftCl
 	if err != nil {
 		return nil, fmt.Errorf("fetch jwks: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close() // ignore close error
+	}()
 
 	var jwks jwksResponse
 	if err := json.NewDecoder(resp.Body).Decode(&jwks); err != nil {
@@ -367,7 +369,7 @@ func validateMicrosoftIDToken(ctx context.Context, idToken string) (*MicrosoftCl
 	if claims.ExpiresAt == nil {
 		return nil, errors.New("token missing exp")
 	}
-	if claims.ExpiresAt.Time.Before(now) {
+	if claims.ExpiresAt.Before(now) {
 		return nil, errors.New("token expired")
 	}
 
@@ -386,7 +388,7 @@ func validateMicrosoftIDToken(ctx context.Context, idToken string) (*MicrosoftCl
 	}
 
 	// nbf / iat (optional strict checks)
-	if claims.NotBefore != nil && claims.NotBefore.Time.After(now.Add(1*time.Minute)) {
+	if claims.NotBefore != nil && claims.NotBefore.After(now.Add(1*time.Minute)) {
 		return nil, errors.New("token not valid yet (nbf)")
 	}
 	// ------------------------------------------------
