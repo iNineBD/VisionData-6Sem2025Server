@@ -56,8 +56,8 @@ type UserTermConsent struct {
 	RevokedReason *string    `json:"revokedReason,omitempty" gorm:"column:RevokedReason;type:nvarchar(max)"`
 
 	// Relacionamentos
-	User       User              `json:"user,omitempty" gorm:"foreignKey:UserId"`
-	Term       TermsOfUse        `json:"term,omitempty" gorm:"foreignKey:TermId"`
+	User         User              `json:"user,omitempty" gorm:"foreignKey:UserId"`
+	Term         TermsOfUse        `json:"term,omitempty" gorm:"foreignKey:TermId"`
 	ItemConsents []UserItemConsent `json:"itemConsents,omitempty" gorm:"foreignKey:UserConsentId"`
 }
 
