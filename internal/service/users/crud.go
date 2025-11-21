@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -561,8 +562,8 @@ func UpdateUser(cfg *config.App) gin.HandlerFunc {
 
 // ChangePassword altera a senha do usuário autenticado
 // @Summary      Alterar Senha
-// @Description  Permite que o usuário altere sua própria senha
-// @Tags         users
+// @Description  Permite que o usuário autenticado altere sua própria senha
+// @Tags         auth
 // @Accept       json
 // @Produce      json
 // @Security 	 BearerAuth
@@ -572,7 +573,7 @@ func UpdateUser(cfg *config.App) gin.HandlerFunc {
 // @Failure 	 401 {object} dto.AuthErrorResponse "Unauthorized"
 // @Failure 	 403 {object} dto.ErrorResponse "Current password incorrect"
 // @Failure 	 500 {object} dto.ErrorResponse "Internal Server Error"
-// @Router       /users/change-password [post]
+// @Router       /auth/change-password [post]
 func ChangePassword(cfg *config.App) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req dto.ChangePasswordRequest
@@ -691,9 +692,9 @@ func ChangePassword(cfg *config.App) gin.HandlerFunc {
 	}
 }
 
-// DeleteUser deleta (desativa) um usuário
+// DeleteUser deleta (desativa) um usuário (apenas MANAGER/ADMIN)
 // @Summary      Deletar Usuário
-// @Description  Desativa um usuário do sistema (soft delete)
+// @Description  Desativa um usuário do sistema (soft delete) - apenas MANAGER ou ADMIN
 // @Tags         users
 // @Accept       json
 // @Produce      json
@@ -708,7 +709,7 @@ func ChangePassword(cfg *config.App) gin.HandlerFunc {
 func DeleteUser(cfg *config.App) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		idParam := c.Param("id")
-		id, err := strconv.Atoi(idParam)
+		targetId, err := strconv.Atoi(idParam)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, dto.ErrorResponse{
 				BaseResponse: dto.BaseResponse{
@@ -729,8 +730,8 @@ func DeleteUser(cfg *config.App) gin.HandlerFunc {
 			deletedBy = uid
 		}
 
-		// Não permitir que usuário delete a si mesmo
-		if deletedBy == id {
+		// Não permitir que usuário delete a si mesmo via este endpoint
+		if deletedBy == targetId {
 			c.JSON(http.StatusBadRequest, dto.ErrorResponse{
 				BaseResponse: dto.BaseResponse{
 					Success:   false,
@@ -738,31 +739,100 @@ func DeleteUser(cfg *config.App) gin.HandlerFunc {
 				},
 				Error:   "Bad Request",
 				Code:    http.StatusBadRequest,
-				Message: "User cannot delete themselves",
+				Message: "User cannot delete themselves via this endpoint. Use /auth/delete-account instead",
 			})
 			return
 		}
 
-		if err := cfg.SqlServer.DeleteUser(c.Request.Context(), id, deletedBy); err != nil {
-			c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+		deleteUserAccount(c, cfg, targetId, deletedBy)
+	}
+}
+
+// DeleteOwnAccount permite que qualquer usuário autenticado delete sua própria conta
+// @Summary      Deletar Própria Conta
+// @Description  Permite que qualquer usuário autenticado desative sua própria conta
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Security 	 BearerAuth
+// @Success      200 {object} dto.SuccessResponse
+// @Failure 	 401 {object} dto.AuthErrorResponse "Unauthorized"
+// @Failure 	 500 {object} dto.ErrorResponse "Internal Server Error"
+// @Router       /auth/delete-account [delete]
+func DeleteOwnAccount(cfg *config.App) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Pegar claims do JWT
+		currentUser, exists := c.Get("currentUser")
+		if !exists {
+			c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
 				BaseResponse: dto.BaseResponse{
 					Success:   false,
 					Timestamp: time.Now(),
 				},
-				Error:   "Internal Server Error",
-				Code:    http.StatusInternalServerError,
-				Message: "Failed to delete user",
-				Details: err.Error(),
+				Error:   "Unauthorized",
+				Code:    http.StatusUnauthorized,
+				Message: "User not authenticated",
 			})
 			return
 		}
 
-		c.JSON(http.StatusOK, dto.SuccessResponse{
+		claims, ok := currentUser.(jwt.MapClaims)
+		if !ok {
+			c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
+				BaseResponse: dto.BaseResponse{
+					Success:   false,
+					Timestamp: time.Now(),
+				},
+				Error:   "Unauthorized",
+				Code:    http.StatusUnauthorized,
+				Message: "Invalid token claims",
+			})
+			return
+		}
+
+		// Extrair user_id do claims
+		userIdFloat, ok := claims["user_id"].(float64)
+		if !ok {
+			c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
+				BaseResponse: dto.BaseResponse{
+					Success:   false,
+					Timestamp: time.Now(),
+				},
+				Error:   "Unauthorized",
+				Code:    http.StatusUnauthorized,
+				Message: "Invalid user ID in token",
+			})
+			return
+		}
+
+		userId := int(userIdFloat)
+
+		// Deletar a própria conta (userId como target e deletedBy)
+		deleteUserAccount(c, cfg, userId, userId)
+	}
+}
+
+// deleteUserAccount é a função auxiliar compartilhada para deletar usuário
+func deleteUserAccount(c *gin.Context, cfg *config.App, targetUserId int, deletedBy int) {
+	if err := cfg.SqlServer.DeleteUser(c.Request.Context(), targetUserId, deletedBy); err != nil {
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
 			BaseResponse: dto.BaseResponse{
-				Success:   true,
+				Success:   false,
 				Timestamp: time.Now(),
 			},
-			Message: "User deleted successfully",
+			Error:   "Internal Server Error",
+			Code:    http.StatusInternalServerError,
+			Message: "Failed to delete account",
+			Details: err.Error(),
 		})
+		return
 	}
+
+	c.JSON(http.StatusOK, dto.SuccessResponse{
+		BaseResponse: dto.BaseResponse{
+			Success:   true,
+			Timestamp: time.Now(),
+		},
+		Message: "Account deleted successfully",
+	})
 }

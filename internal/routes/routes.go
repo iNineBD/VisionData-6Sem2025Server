@@ -51,6 +51,12 @@ func InitiateRoutes(engine *gin.Engine, cfg *config.App) {
 		userRoutes.PUT("/:id", users.UpdateUser(cfg))
 	}
 
+	// Exclusão de usuários: apenas ADMIN (Auth(1))
+	adminRoutes := engine.Group("/users", middleware.Auth(1))
+	{
+		adminRoutes.DELETE("/:id", users.DeleteUser(cfg))
+	}
+
 	// Endpoints públicos e autenticados (qualquer usuário logado)
 	authRoutes := engine.Group("/auth")
 	{
@@ -61,9 +67,9 @@ func InitiateRoutes(engine *gin.Engine, cfg *config.App) {
 		authRoutes.GET("/terms/active", terms.GetActiveTerm(cfg))
 		authRoutes.POST("/register", users.CreateUser(cfg))
 
-		// Autenticados (qualquer role)
+		// Autenticados (qualquer role pode acessar)
 		authRoutes.POST("/change-password", middleware.Auth(3), users.ChangePassword(cfg))
-		authRoutes.DELETE("/:id", middleware.Auth(3), users.DeleteUser(cfg))
+		authRoutes.DELETE("/delete-account", middleware.Auth(3), users.DeleteOwnAccount(cfg))
 	}
 
 	// Gerenciamento de termos: apenas ADMIN (Auth(1))
