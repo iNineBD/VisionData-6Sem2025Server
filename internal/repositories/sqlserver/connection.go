@@ -18,7 +18,8 @@ import (
 
 // SQLServerInternal is a struct that contains a SQL Server database connection
 type Internal struct {
-	db *gorm.DB
+	db     *gorm.DB
+	db_bkp *gorm.DB
 }
 
 // NewSQLServerInternal is a function that returns a new SQLServerInternal struct
@@ -47,8 +48,26 @@ func NewSQLServerInternal() (*Internal, error) {
 		return nil, err
 	}
 
+	dsn = "sqlserver://" + sqlServerUsername + ":" + sqlServerPassword + "@" + sqlServerHost + ":" + sqlServerPort + "?database=LGPD"
+	fmt.Println("DSN SQLSERVER:", dsn)
+
+	db2, err := gorm.Open(sqlserver.Open(dsn), &gorm.Config{})
+	if err != nil {
+		return nil, err
+	}
+
+	sqlDB2, err := db2.DB()
+	if err != nil {
+		return nil, err
+	}
+
+	if err := sqlDB2.Ping(); err != nil {
+		return nil, err
+	}
+
 	return &Internal{
-		db: db,
+		db:     db,
+		db_bkp: db2,
 	}, nil
 }
 

@@ -1,32 +1,32 @@
 package users
 
 import (
+	"fmt"
 	"net/http"
 	"orderstreamrest/internal/config"
 	"orderstreamrest/internal/models/dto"
 	"orderstreamrest/internal/models/entities"
+	"orderstreamrest/internal/utils"
 	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
 
 // CreateUser cria um novo usuário
-// @Summary      Criar Usuário
-// @Description  Cria um novo usuário no sistema
-// @Tags         users
+// @Summary      Registrar Novo Usuário
+// @Description  Cria um novo usuário no sistema (endpoint público para registro)
+// @Tags         auth
 // @Accept       json
 // @Produce      json
-// @Security 	 BearerAuth
 // @Param        user body dto.CreateUserRequest true "Dados do usuário"
 // @Success      201 {object} dto.SuccessResponse{data=dto.UserCreatedResponse}
 // @Failure 	 400 {object} dto.ErrorResponse "Bad Request"
-// @Failure 	 401 {object} dto.AuthErrorResponse "Unauthorized"
-// @Failure 	 403 {object} dto.ErrorResponse "Forbidden"
 // @Failure 	 409 {object} dto.ErrorResponse "Conflict - Email já existe"
 // @Failure 	 500 {object} dto.ErrorResponse "Internal Server Error"
-// @Router       /users [post]
+// @Router       /auth/register [post]
 func CreateUser(cfg *config.App) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req dto.CreateUserRequest
@@ -44,8 +44,22 @@ func CreateUser(cfg *config.App) gin.HandlerFunc {
 			return
 		}
 
-		// Validar que pelo menos senha ou MicrosoftId foi fornecido
-		if req.Password == nil && req.MicrosoftId == nil {
+		if _, ok := utils.UserTypMapStrToInt[req.UserType]; !ok {
+			c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+				BaseResponse: dto.BaseResponse{
+					Success:   false,
+					Timestamp: time.Now(),
+				},
+				Error:   "Bad Request",
+				Code:    http.StatusBadRequest,
+				Message: "Invalid parameter",
+				Details: fmt.Errorf("the parameter 'userType' must be %v", utils.UserTypMapIntToStr),
+			})
+			return
+		}
+
+		// Validar que pelo menos senha foi fornecido
+		if req.Password == nil {
 			c.JSON(http.StatusBadRequest, dto.ErrorResponse{
 				BaseResponse: dto.BaseResponse{
 					Success:   false,
@@ -54,6 +68,60 @@ func CreateUser(cfg *config.App) gin.HandlerFunc {
 				Error:   "Bad Request",
 				Code:    http.StatusBadRequest,
 				Message: "Either password or microsoftId must be provided",
+			})
+			return
+		}
+
+		// Validar consentimento dos termos
+		if req.TermConsent.TermId == 0 || len(req.TermConsent.ItemConsents) == 0 {
+			c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+				BaseResponse: dto.BaseResponse{
+					Success:   false,
+					Timestamp: time.Now(),
+				},
+				Error:   "Bad Request",
+				Code:    http.StatusBadRequest,
+				Message: "Term consent is required for registration",
+			})
+			return
+		}
+
+		// Verificar se o termo existe e está ativo
+		term, err := cfg.SqlServer.GetTermByID(c.Request.Context(), req.TermConsent.TermId)
+		if err != nil || !term.IsActive {
+			c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+				BaseResponse: dto.BaseResponse{
+					Success:   false,
+					Timestamp: time.Now(),
+				},
+				Error:   "Bad Request",
+				Code:    http.StatusBadRequest,
+				Message: "Invalid or inactive term",
+			})
+			return
+		}
+
+		// Validar que o item obrigatório foi aceito
+		hasAcceptedMandatory := false
+		for _, itemConsent := range req.TermConsent.ItemConsents {
+			// Buscar o item no termo
+			for _, termItem := range term.Items {
+				if termItem.Id == itemConsent.ItemId && termItem.IsMandatory && itemConsent.Accepted {
+					hasAcceptedMandatory = true
+					break
+				}
+			}
+		}
+
+		if !hasAcceptedMandatory {
+			c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+				BaseResponse: dto.BaseResponse{
+					Success:   false,
+					Timestamp: time.Now(),
+				},
+				Error:   "Bad Request",
+				Code:    http.StatusBadRequest,
+				Message: "You must accept the mandatory term item to register",
 			})
 			return
 		}
@@ -94,21 +162,22 @@ func CreateUser(cfg *config.App) gin.HandlerFunc {
 			passwordHash = &hashStr
 		}
 
-		// Pegar ID do usuário autenticado (assumindo que está no contexto)
-		currentUserId, _ := c.Get("user_id")
-		var createdBy *int
-		if id, ok := currentUserId.(int); ok {
-			createdBy = &id
-		}
+		// // Pegar ID do usuário autenticado (assumindo que está no contexto)
+		// currentUserId, _ := c.Get("user_id")
+		// var createdBy *int
+		// if id, ok := currentUserId.(int); ok {
+		// 	createdBy = &id
+		// }
 
+		temp := "pegadinha do malandro" + uuid.New().String()
 		user := &entities.User{
 			Name:         req.Name,
 			Email:        req.Email,
 			PasswordHash: passwordHash,
 			UserType:     req.UserType,
-			MicrosoftId:  req.MicrosoftId,
+			MicrosoftId:  &temp,
 			IsActive:     true,
-			CreatedBy:    createdBy,
+			// CreatedBy:    createdBy,
 		}
 
 		id, err := cfg.SqlServer.CreateUser(c.Request.Context(), user)
@@ -121,6 +190,45 @@ func CreateUser(cfg *config.App) gin.HandlerFunc {
 				Error:   "Internal Server Error",
 				Code:    http.StatusInternalServerError,
 				Message: "Failed to create user",
+				Details: err.Error(),
+			})
+			return
+		}
+
+		// Registrar consentimento dos termos
+		ipAddress := c.ClientIP()
+		userAgent := c.GetHeader("User-Agent")
+
+		consent := &entities.UserTermConsent{
+			UserId:       id,
+			TermId:       req.TermConsent.TermId,
+			ConsentDate:  time.Now(),
+			IsActive:     true,
+			IPAddress:    &ipAddress,
+			UserAgent:    &userAgent,
+			ItemConsents: []entities.UserItemConsent{},
+		}
+
+		for _, itemConsent := range req.TermConsent.ItemConsents {
+			consent.ItemConsents = append(consent.ItemConsents, entities.UserItemConsent{
+				ItemId:      itemConsent.ItemId,
+				Accepted:    itemConsent.Accepted,
+				ConsentDate: time.Now(),
+			})
+		}
+
+		err = cfg.SqlServer.RegisterUserConsent(c.Request.Context(), consent)
+		if err != nil {
+			// Se falhar ao registrar consentimento, reverter criação do usuário
+			// Aqui você pode implementar uma lógica de rollback se necessário
+			c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+				BaseResponse: dto.BaseResponse{
+					Success:   false,
+					Timestamp: time.Now(),
+				},
+				Error:   "Internal Server Error",
+				Code:    http.StatusInternalServerError,
+				Message: "Failed to register term consent",
 				Details: err.Error(),
 			})
 			return
@@ -333,6 +441,20 @@ func UpdateUser(cfg *config.App) gin.HandlerFunc {
 			return
 		}
 
+		if _, ok := utils.UserTypMapStrToInt[*req.UserType]; !ok {
+			c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+				BaseResponse: dto.BaseResponse{
+					Success:   false,
+					Timestamp: time.Now(),
+				},
+				Error:   "Bad Request",
+				Code:    http.StatusBadRequest,
+				Message: "Invalid parameter",
+				Details: fmt.Errorf("the parameter 'userType' must be %v", utils.UserTypMapIntToStr),
+			})
+			return
+		}
+
 		// Buscar usuário existente
 		user, err := cfg.SqlServer.GetUserByID(c.Request.Context(), id)
 		if err != nil {
@@ -379,12 +501,6 @@ func UpdateUser(cfg *config.App) gin.HandlerFunc {
 			user.IsActive = *req.IsActive
 		}
 
-		// Pegar ID do usuário autenticado
-		currentUserId, _ := c.Get("user_id")
-		if uid, ok := currentUserId.(int); ok {
-			user.UpdatedBy = &uid
-		}
-
 		// Atualizar senha se fornecida
 		if req.Password != nil {
 			hash, err := bcrypt.GenerateFromPassword([]byte(*req.Password), bcrypt.DefaultCost)
@@ -402,20 +518,19 @@ func UpdateUser(cfg *config.App) gin.HandlerFunc {
 				return
 			}
 
-			if user.UpdatedBy != nil {
-				if err := cfg.SqlServer.UpdatePassword(c.Request.Context(), id, string(hash), *user.UpdatedBy); err != nil {
-					c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-						BaseResponse: dto.BaseResponse{
-							Success:   false,
-							Timestamp: time.Now(),
-						},
-						Error:   "Internal Server Error",
-						Code:    http.StatusInternalServerError,
-						Message: "Failed to update password",
-						Details: err.Error(),
-					})
-					return
-				}
+			if err := cfg.SqlServer.UpdatePassword(c.Request.Context(), id, string(hash), 0); err != nil {
+				c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+					BaseResponse: dto.BaseResponse{
+						Success:   false,
+						Timestamp: time.Now(),
+					},
+					Error:   "Internal Server Error",
+					Code:    http.StatusInternalServerError,
+					Message: "Failed to update password",
+					Details: err.Error(),
+				})
+				return
+
 			}
 		}
 

@@ -15,12 +15,11 @@ type User struct {
 	UpdatedAt    *time.Time `json:"updatedAt,omitempty" gorm:"column:UpdatedAt;type:datetime2"`
 	LastLoginAt  *time.Time `json:"lastLoginAt,omitempty" gorm:"column:LastLoginAt;type:datetime2"`
 	CreatedBy    *int       `json:"createdBy,omitempty" gorm:"column:CreatedBy;type:int"`
-	UpdatedBy    *int       `json:"updatedBy,omitempty" gorm:"column:UpdatedBy;type:int"`
 }
 
 // TableName especifica o nome da tabela no banco
 func (User) TableName() string {
-	return "dbo.Users"
+	return "dbo.tb_users"
 }
 
 // UserAuthLog representa um log de autenticação

@@ -8,6 +8,7 @@ require (
 	github.com/gin-contrib/cors v1.7.3
 	github.com/gin-gonic/gin v1.10.0
 	github.com/golang-jwt/jwt v3.2.2+incompatible
+	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
 	github.com/redis/go-redis/v9 v9.7.0
@@ -17,6 +18,8 @@ require (
 	github.com/swaggo/swag v1.16.6
 	github.com/unrolled/secure v1.17.0
 	go.mongodb.org/mongo-driver v1.17.1
+	golang.org/x/crypto v0.42.0
+	golang.org/x/oauth2 v0.33.0
 	golang.org/x/sync v0.17.0
 	gorm.io/driver/sqlserver v1.6.1
 	gorm.io/gorm v1.31.0
@@ -77,7 +80,6 @@ require (
 	go.opentelemetry.io/otel/sdk v1.29.0 // indirect
 	go.opentelemetry.io/otel/trace v1.35.0 // indirect
 	golang.org/x/arch v0.12.0 // indirect
-	golang.org/x/crypto v0.42.0 // indirect
 	golang.org/x/mod v0.28.0 // indirect
 	golang.org/x/net v0.44.0 // indirect
 	golang.org/x/sys v0.36.0 // indirect
