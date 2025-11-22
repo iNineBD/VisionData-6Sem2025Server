@@ -574,6 +574,7 @@ func UpdateUser(cfg *config.App) gin.HandlerFunc {
 // @Failure 	 403 {object} dto.ErrorResponse "Current password incorrect"
 // @Failure 	 500 {object} dto.ErrorResponse "Internal Server Error"
 // @Router       /auth/change-password [post]
+// ChangePassword altera a senha do usuário autenticado
 func ChangePassword(cfg *config.App) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req dto.ChangePasswordRequest
@@ -591,8 +592,8 @@ func ChangePassword(cfg *config.App) gin.HandlerFunc {
 			return
 		}
 
-		// Pegar ID do usuário autenticado
-		currentUserId, exists := c.Get("user_id")
+		// Pegar claims do JWT
+		currentUser, exists := c.Get("currentUser")
 		if !exists {
 			c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
 				BaseResponse: dto.BaseResponse{
@@ -606,7 +607,35 @@ func ChangePassword(cfg *config.App) gin.HandlerFunc {
 			return
 		}
 
-		userId := currentUserId.(int)
+		claims, ok := currentUser.(jwt.MapClaims)
+		if !ok {
+			c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
+				BaseResponse: dto.BaseResponse{
+					Success:   false,
+					Timestamp: time.Now(),
+				},
+				Error:   "Unauthorized",
+				Code:    http.StatusUnauthorized,
+				Message: "Invalid token claims",
+			})
+			return
+		}
+
+		userIdFloat, ok := claims["user_id"].(float64)
+		if !ok {
+			c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
+				BaseResponse: dto.BaseResponse{
+					Success:   false,
+					Timestamp: time.Now(),
+				},
+				Error:   "Unauthorized",
+				Code:    http.StatusUnauthorized,
+				Message: "Invalid user ID in token",
+			})
+			return
+		}
+
+		userId := int(userIdFloat)
 
 		// Buscar usuário
 		user, err := cfg.SqlServer.GetUserByID(c.Request.Context(), userId)
@@ -622,6 +651,8 @@ func ChangePassword(cfg *config.App) gin.HandlerFunc {
 			})
 			return
 		}
+
+		// ... (restante do código permanece igual)
 
 		// Verificar senha atual
 		if user.PasswordHash == nil {
