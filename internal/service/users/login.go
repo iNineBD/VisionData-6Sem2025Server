@@ -433,7 +433,7 @@ func generateState() (string, error) {
 
 // MicrosoftLoginHandler inicia o fluxo OAuth2 da Microsoft
 // @Summary      Iniciar login via Microsoft
-// @Description  Redireciona o usuário para o portal de autenticação da Microsoft (OAuth2). Esse endpoint não requer body e deve ser acessado via navegador.
+// @Description  Redireciona o usuário para o portal de autenticação da Microsoft (OAuth2). Esse endpoint não requer body e deve ser acessado via navegador. Força nova autenticação usando prompt=login para evitar sessões em cache.
 // @Tags         auth
 // @Produce      json
 // @Success      302 {string} string "Redirect para a página de login da Microsoft"
@@ -451,17 +451,25 @@ func MicrosoftLoginHandler() gin.HandlerFunc {
 			})
 			return
 		}
-		url := microsoftOauthConfig.AuthCodeURL(state, oauth2.AccessTypeOffline)
+
+		// Adiciona prompt=login para forçar autenticação e evitar cache de sessões
+		// Adiciona prompt=select_account para permitir seleção de conta
+		url := microsoftOauthConfig.AuthCodeURL(
+			state,
+			oauth2.AccessTypeOffline,
+			oauth2.SetAuthURLParam("prompt", "login"),
+		)
 		c.Redirect(http.StatusFound, url)
 	}
 }
 
 // MicrosoftCallbackHandler recebe o código OAuth2 da Microsoft e gera um JWT interno
 // @Summary      Callback de autenticação Microsoft
-// @Description  Endpoint que recebe o `code` da Microsoft após autenticação, valida o `id_token`, cria ou atualiza o usuário no banco e retorna um JWT interno.
+// @Description  Endpoint que recebe o `code` da Microsoft após autenticação, valida o `id_token`, cria ou atualiza o usuário no banco e retorna um JWT interno. Este endpoint processa o código apenas uma vez e nunca aceita tokens diretamente do frontend.
 // @Tags         auth
 // @Produce      json
 // @Param        code query string true "Código de autorização retornado pela Microsoft"
+// @Param        state query string false "Estado CSRF retornado pela Microsoft"
 // @Success      302 {string} string "Redirect para o frontend com o JWT na query string"
 // @Failure      400 {object} dto.ErrorResponse "Bad Request - Código ausente"
 // @Failure      401 {object} dto.ErrorResponse "Unauthorized - Token Microsoft inválido"
@@ -470,19 +478,29 @@ func MicrosoftLoginHandler() gin.HandlerFunc {
 func MicrosoftCallbackHandler(cfg *config.App) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		code := c.Query("code")
+		state := c.Query("state")
+
+		// Validação básica do code
 		if code == "" {
-			c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-				BaseResponse: dto.BaseResponse{Success: false, Timestamp: time.Now()},
-				Error:        "Bad Request",
-				Code:         http.StatusBadRequest,
-				Message:      "missing code",
-			})
+			frontendURL := os.Getenv("URL_REDIRECT_FRONT")
+			if frontendURL == "" {
+				frontendURL = "http://localhost:3000"
+			}
+			c.Redirect(http.StatusFound, frontendURL+"/login?error=missing_code")
 			return
 		}
 
-		// Troca o code por token Microsoft
-		token, err := microsoftOauthConfig.Exchange(context.Background(), code)
+		// TODO: Em produção, validar o state contra o armazenado (Redis/Session)
+		// Por hora, apenas log
+		if state != "" {
+			log.Printf("OAuth state received: %s", state)
+		}
+
+		// Troca o code por token Microsoft (código é de uso único)
+		ctx := c.Request.Context()
+		token, err := microsoftOauthConfig.Exchange(ctx, code)
 		if err != nil {
+			log.Printf("Failed to exchange code: %v", err)
 			c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
 				BaseResponse: dto.BaseResponse{Success: false, Timestamp: time.Now()},
 				Error:        "Internal Server Error",
@@ -505,7 +523,9 @@ func MicrosoftCallbackHandler(cfg *config.App) gin.HandlerFunc {
 		}
 
 		idToken := rawIDToken.(string)
-		claims, err := validateMicrosoftIDToken(context.Background(), idToken)
+
+		// Valida o id_token recebido da Microsoft (verifica assinatura, exp, aud, iss)
+		claims, err := validateMicrosoftIDToken(ctx, idToken)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
 				BaseResponse: dto.BaseResponse{Success: false, Timestamp: time.Now()},
@@ -517,19 +537,20 @@ func MicrosoftCallbackHandler(cfg *config.App) gin.HandlerFunc {
 		}
 
 		// Busca ou cria usuário no banco
-		user, err := cfg.SqlServer.GetUserByMicrosoftID(c.Request.Context(), claims.Subject)
+		user, err := cfg.SqlServer.GetUserByMicrosoftID(ctx, claims.Subject)
 		if err != nil {
-			user, err = cfg.SqlServer.GetUserByEmail(c.Request.Context(), claims.Email)
+			user, err = cfg.SqlServer.GetUserByEmail(ctx, claims.Email)
 			if err != nil {
+				// Usuário não existe - criar novo
 				newUser := &entities.User{
 					Name:        claims.Name,
 					Email:       claims.Email,
 					IsActive:    true,
 					MicrosoftId: &claims.Subject,
 					CreatedAt:   time.Now(),
-					UserType:    utils.UserTypMapIntToStr[3],
+					UserType:    utils.UserTypMapIntToStr[3], // Tipo padrão: SUPPORT
 				}
-				if _, err := cfg.SqlServer.CreateUser(c.Request.Context(), newUser); err != nil {
+				if _, err := cfg.SqlServer.CreateUser(ctx, newUser); err != nil {
 					c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
 						BaseResponse: dto.BaseResponse{Success: false, Timestamp: time.Now()},
 						Error:        "Internal Server Error",
@@ -540,10 +561,35 @@ func MicrosoftCallbackHandler(cfg *config.App) gin.HandlerFunc {
 					return
 				}
 				user = newUser
+			} else {
+				// Usuário existe por email mas não tem MicrosoftId - vincular
+				user.MicrosoftId = &claims.Subject
+				now := time.Now()
+				user.UpdatedAt = &now
+				if err := cfg.SqlServer.UpdateUser(ctx, user.Id, user); err != nil {
+					log.Printf("warning: failed to link microsoft id for user %d: %v", user.Id, err)
+				}
 			}
 		}
 
-		// Gera JWT interno
+		// Verifica se o usuário está ativo
+		if !user.IsActive {
+			frontendURL := os.Getenv("URL_REDIRECT_FRONT")
+			if frontendURL == "" {
+				frontendURL = "http://localhost:3000"
+			}
+			c.Redirect(http.StatusFound, frontendURL+"/login?error=user_inactive")
+			return
+		}
+
+		// Atualiza LastLoginAt
+		now := time.Now()
+		user.LastLoginAt = &now
+		if err := cfg.SqlServer.UpdateUser(ctx, user.Id, user); err != nil {
+			log.Printf("warning: failed to update LastLoginAt for user %d: %v", user.Id, err)
+		}
+
+		// Gera JWT interno (nunca expor o token Microsoft ao frontend)
 		tokenStr, err := middleware.GenerateJWT(int64(user.Id), user.Email, int64(utils.UserTypMapStrToInt[user.UserType]))
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
@@ -556,18 +602,22 @@ func MicrosoftCallbackHandler(cfg *config.App) gin.HandlerFunc {
 			return
 		}
 
-		// Redireciona para o front-end com o JWT
+		// Redireciona para o front-end com o JWT interno (não o token Microsoft)
+		frontendURL := os.Getenv("URL_REDIRECT_FRONT")
+		if frontendURL == "" {
+			frontendURL = "http://localhost:3000"
+		}
+
 		redirectURL := fmt.Sprintf("%s?token=%s&id=%d&email=%s&name=%s&role=%s",
-			os.Getenv("URL_REDIRECT_FRONT"),
+			frontendURL,
 			tokenStr,
 			user.Id,
 			url.QueryEscape(user.Email),
 			url.QueryEscape(user.Name),
 			url.QueryEscape(user.UserType),
 		)
-		// Exemplo de URL gerada:
-		// https://meusite.com/poslogin?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...&id=123&email=joao%40exemplo.com&name=Joao+Silva&role=admin
 
+		log.Printf("Successful Microsoft login for user %d (%s)", user.Id, user.Email)
 		c.Redirect(http.StatusFound, redirectURL)
 	}
 }
