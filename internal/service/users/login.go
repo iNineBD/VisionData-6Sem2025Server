@@ -120,7 +120,7 @@ func LoginHandler(a *config.App) gin.HandlerFunc {
 			// 1) Your backend did the OAuth flow and you already have the id_token -> the front POSTs it here.
 			// 2) Or front didn't touch MS and this endpoint will be used only when you want front to POST id_token.
 			// In our preferred backend-only flow, the backend handles entire OAuth and you won't use this branch.
-			if req.MicrosoftIDToken == "" {
+			if req.MicrosoftIDToken == nil || *req.MicrosoftIDToken == "" {
 				c.JSON(http.StatusBadRequest, dto.ErrorResponse{
 					BaseResponse: dto.BaseResponse{Success: false, Timestamp: time.Now()},
 					Error:        "Bad Request",
@@ -130,7 +130,7 @@ func LoginHandler(a *config.App) gin.HandlerFunc {
 				return
 			}
 
-			claims, err := validateMicrosoftIDToken(ctx, req.MicrosoftIDToken)
+			claims, err := validateMicrosoftIDToken(ctx, *req.MicrosoftIDToken)
 			if err != nil {
 				c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
 					BaseResponse: dto.BaseResponse{Success: false, Timestamp: time.Now()},
@@ -298,7 +298,9 @@ func validateMicrosoftIDToken(ctx context.Context, idToken string) (*MicrosoftCl
 	if err != nil {
 		return nil, fmt.Errorf("fetch jwks: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close() // ignore close error
+	}()
 
 	var jwks jwksResponse
 	if err := json.NewDecoder(resp.Body).Decode(&jwks); err != nil {
@@ -367,7 +369,7 @@ func validateMicrosoftIDToken(ctx context.Context, idToken string) (*MicrosoftCl
 	if claims.ExpiresAt == nil {
 		return nil, errors.New("token missing exp")
 	}
-	if claims.ExpiresAt.Time.Before(now) {
+	if claims.ExpiresAt.Before(now) {
 		return nil, errors.New("token expired")
 	}
 
@@ -386,7 +388,7 @@ func validateMicrosoftIDToken(ctx context.Context, idToken string) (*MicrosoftCl
 	}
 
 	// nbf / iat (optional strict checks)
-	if claims.NotBefore != nil && claims.NotBefore.Time.After(now.Add(1*time.Minute)) {
+	if claims.NotBefore != nil && claims.NotBefore.After(now.Add(1*time.Minute)) {
 		return nil, errors.New("token not valid yet (nbf)")
 	}
 	// ------------------------------------------------
@@ -398,8 +400,6 @@ func validateMicrosoftIDToken(ctx context.Context, idToken string) (*MicrosoftCl
 // OAuth2 config & helpers
 // ---------------------------
 
-var oauthConfig *oauth2.Config
-
 func InitOAuthConfig() {
 	clientID := os.Getenv("MICROSOFT_CLIENT_ID")
 	clientSecret := os.Getenv("MICROSOFT_CLIENT_SECRET")
@@ -409,7 +409,7 @@ func InitOAuthConfig() {
 		log.Fatal("MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET and REDIRECT_URL must be set")
 	}
 
-	oauthConfig = &oauth2.Config{
+	microsoftOauthConfig = &oauth2.Config{
 		ClientID:     clientID,
 		ClientSecret: clientSecret,
 		RedirectURL:  redirectURL,

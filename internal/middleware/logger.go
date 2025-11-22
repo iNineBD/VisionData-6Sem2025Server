@@ -190,12 +190,12 @@ func LoggerMiddleware(esLogger *logger.ElasticsearchLogger, config ...Middleware
 
 		// Build HTTP context
 		httpContext := &logger.HTTPContext{
-			Method:       c.Request.Method,
-			URL:          c.Request.URL.String(),
-			Path:         c.Request.URL.Path,
-			Query:        c.Request.URL.RawQuery,
-			UserAgent:    c.Request.UserAgent(),
-			RemoteIP:     c.ClientIP(),
+			Method:    c.Request.Method,
+			URL:       c.Request.URL.String(),
+			Path:      c.Request.URL.Path,
+			Query:     c.Request.URL.RawQuery,
+			UserAgent: c.Request.UserAgent(),
+			// RemoteIP:     c.ClientIP(),
 			Headers:      headers,
 			StatusCode:   statusCode,
 			ResponseSize: int64(c.Writer.Size()),

@@ -8,10 +8,11 @@ import "time"
 
 // CreateUserRequest representa a requisição de criação de usuário
 type CreateUserRequest struct {
-	Name     string  `json:"name" binding:"required,min=3,max=200" example:"João Silva"`
-	Email    string  `json:"email" binding:"required,email,max=255" example:"joao@example.com"`
-	Password *string `json:"password,omitempty" binding:"omitempty,min=8,max=100" example:"SenhaSegura@123"`
-	UserType string  `json:"userType" binding:"required,oneof=ADMIN MANAGER SUPPORT" example:"SUPPORT" enums:"ADMIN,MANAGER,SUPPORT"`
+	Name        string             `json:"name" binding:"required,min=3,max=200" example:"João Silva"`
+	Email       string             `json:"email" binding:"required,email,max=255" example:"joao@example.com"`
+	Password    *string            `json:"password,omitempty" binding:"omitempty,min=8,max=100" example:"SenhaSegura@123"`
+	UserType    string             `json:"userType" binding:"required,oneof=ADMIN MANAGER SUPPORT" example:"SUPPORT" enums:"ADMIN,MANAGER,SUPPORT"`
+	TermConsent UserConsentRequest `json:"termConsent" binding:"required"` // Consentimento obrigatório
 	// MicrosoftId *string `json:"microsoftId,omitempty" binding:"omitempty,max=255" example:"a1b2c3d4-e5f6-7890-abcd-ef1234567890"`
 }
 
@@ -20,7 +21,7 @@ type UpdateUserRequest struct {
 	Name     *string `json:"name,omitempty" binding:"omitempty,min=3,max=200" example:"João Silva Atualizado"`
 	Email    *string `json:"email,omitempty" binding:"omitempty,email,max=255" example:"joao.novo@example.com"`
 	Password *string `json:"password,omitempty" binding:"omitempty,min=8,max=100" example:"NovaSenha@456"`
-	UserType *string `json:"userType,omitempty" binding:"omitempty,oneof=ADMIN MANAGER AGENT VIEWER" example:"MANAGER" enums:"ADMIN,MANAGER,AGENT,VIEWER"`
+	UserType *string `json:"userType,omitempty" binding:"omitempty,oneof=ADMIN MANAGER SUPPORT" example:"MANAGER" enums:"ADMIN,MANAGER,SUPPORT"`
 	IsActive *bool   `json:"isActive,omitempty" example:"true"`
 }
 
@@ -36,10 +37,10 @@ type ChangePasswordRequest struct {
 
 // LoginRequest representa a requisição de login
 type LoginRequest struct {
-	Email            string `json:"email" binding:"required,email" example:"joao@example.com"`
-	Password         string `json:"password" binding:"required" example:"SenhaSegura@123"`
-	LoginType        string `json:"login_type" binding:"required,oneof=password microsoft" example:"password"`
-	MicrosoftIDToken string `json:"microsoft_id_token,omitempty" example:"eyJhbGciOi..."` // optional for microsoft flow when front handles OAuth; not needed when backend-only
+	Email            string  `json:"email" binding:"required,email" example:"joao@example.com"`
+	Password         string  `json:"password" binding:"required_if=LoginType password" example:"SenhaSegura@123"`
+	LoginType        string  `json:"login_type" binding:"required,oneof=password microsoft" example:"password"`
+	MicrosoftIDToken *string `json:"microsoft_id_token,omitempty" example:"eyJhbGciOi..."` // optional for microsoft flow when front handles OAuth; not needed when backend-only
 }
 
 // MicrosoftAuthRequest representa a requisição de autenticação Microsoft
@@ -56,7 +57,7 @@ type UserResponse struct {
 	Id          int        `json:"id" example:"1"`
 	Name        string     `json:"name" example:"João Silva"`
 	Email       string     `json:"email" example:"joao@example.com"`
-	UserType    string     `json:"userType" example:"AGENT" enums:"ADMIN,MANAGER,AGENT,VIEWER"`
+	UserType    string     `json:"userType" example:"SUPPORT" enums:"ADMIN,MANAGER,SUPPORT"`
 	MicrosoftId *string    `json:"microsoftId,omitempty" example:"a1b2c3d4-e5f6-7890-abcd-ef1234567890"`
 	IsActive    bool       `json:"isActive" example:"true"`
 	CreatedAt   time.Time  `json:"createdAt" example:"2025-10-16T10:30:00Z"`

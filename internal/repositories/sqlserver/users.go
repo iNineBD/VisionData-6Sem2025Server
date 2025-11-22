@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 // CreateUser cria um novo usuário
@@ -40,7 +41,7 @@ func (s *Internal) GetUserByID(ctx context.Context, id int) (*entities.User, err
 // GetUserByEmail busca um usuário por email
 func (s *Internal) GetUserByEmail(ctx context.Context, email string) (*entities.User, error) {
 	var user entities.User
-	err := s.db.WithContext(ctx).
+	err := s.db.WithContext(ctx).Session(&gorm.Session{Logger: s.db.Logger.LogMode(logger.Silent)}).
 		Table("dbo.tb_users").
 		Where("Email = ?", email).
 		First(&user).Error
@@ -58,7 +59,7 @@ func (s *Internal) GetUserByEmail(ctx context.Context, email string) (*entities.
 // GetUserByMicrosoftID busca um usuário por Microsoft ID
 func (s *Internal) GetUserByMicrosoftID(ctx context.Context, microsoftId string) (*entities.User, error) {
 	var user entities.User
-	err := s.db.WithContext(ctx).
+	err := s.db.WithContext(ctx).Session(&gorm.Session{Logger: s.db.Logger.LogMode(logger.Silent)}).
 		Table("dbo.tb_users").
 		Where("MicrosoftId = ?", microsoftId).
 		First(&user).Error
