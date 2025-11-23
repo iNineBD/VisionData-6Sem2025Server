@@ -84,6 +84,8 @@ func InitiateRoutes(engine *gin.Engine, cfg *config.App) {
 	{
 		// Qualquer usuário autenticado vê seu próprio consentimento
 		consentsRoutes.GET("/me", middleware.Auth(3), terms.GetMyConsentStatus(cfg))
+		// Permite registrar o consentimento
+		consentsRoutes.POST("/me", middleware.Auth(3), terms.RegisterMyConsent(cfg))
 		// Apenas ADMIN vê consentimento de outros usuários
 		consentsRoutes.GET("/user/:userId", middleware.Auth(1), terms.GetUserConsent(cfg))
 	}

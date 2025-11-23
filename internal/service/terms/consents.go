@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"orderstreamrest/internal/config"
 	"orderstreamrest/internal/models/dto"
+	"orderstreamrest/internal/models/entities"
 	"strconv"
 	"time"
 
@@ -241,6 +242,121 @@ func GetUserConsent(cfg *config.App) gin.HandlerFunc {
 			},
 			Data:    response,
 			Message: "User consent retrieved successfully",
+		})
+	}
+}
+
+// RegisterMyConsent registra o consentimento do usuário logado para um termo
+// @Summary      Registrar Consentimento
+// @Description  Permite que o usuário autenticado registre o aceite de um termo de uso
+// @Tags         consents
+// @Accept       json
+// @Produce      json
+// @Security 	 BearerAuth
+// @Param        consent body dto.UserConsentRequest true "Dados do consentimento"
+// @Success      200 {object} dto.SuccessResponse
+// @Failure 	 400 {object} dto.ErrorResponse "Bad Request"
+// @Failure 	 401 {object} dto.AuthErrorResponse "Unauthorized"
+// @Failure 	 500 {object} dto.ErrorResponse "Internal Server Error"
+// @Router       /consents/me [post]
+func RegisterMyConsent(cfg *config.App) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// 1. Pegar ID do usuário autenticado do token JWT
+		userId, err := getUserIdFromContext(c)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
+				BaseResponse: dto.BaseResponse{Success: false, Timestamp: time.Now()},
+				Error:        "Unauthorized",
+				Code:         http.StatusUnauthorized,
+				Message:      "Usuário não autenticado",
+			})
+			return
+		}
+
+		// 2. Ler o corpo da requisição
+		var req dto.UserConsentRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+				BaseResponse: dto.BaseResponse{Success: false, Timestamp: time.Now()},
+				Error:        "Bad Request",
+				Code:         http.StatusBadRequest,
+				Message:      "Corpo da requisição inválido",
+				Details:      err.Error(),
+			})
+			return
+		}
+
+		// 3. Verificar se o termo existe e está ativo
+		term, err := cfg.SqlServer.GetTermByID(c.Request.Context(), req.TermId)
+		if err != nil || !term.IsActive {
+			c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+				BaseResponse: dto.BaseResponse{Success: false, Timestamp: time.Now()},
+				Error:        "Bad Request",
+				Code:         http.StatusBadRequest,
+				Message:      "Termo inválido ou inativo",
+			})
+			return
+		}
+
+		// 4. Validar se os itens obrigatórios foram aceitos
+		hasAcceptedMandatory := false
+		for _, itemConsent := range req.ItemConsents {
+			for _, termItem := range term.Items {
+				if termItem.Id == itemConsent.ItemId && termItem.IsMandatory && itemConsent.Accepted {
+					hasAcceptedMandatory = true
+					break
+				}
+			}
+		}
+
+		if !hasAcceptedMandatory {
+			c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+				BaseResponse: dto.BaseResponse{Success: false, Timestamp: time.Now()},
+				Error:        "Bad Request",
+				Code:         http.StatusBadRequest,
+				Message:      "É necessário aceitar os itens obrigatórios do termo",
+			})
+			return
+		}
+
+		// 5. Preparar o objeto de consentimento (Lógica abstraída do CreateUser)
+		ipAddress := c.ClientIP()
+		userAgent := c.GetHeader("User-Agent")
+
+		consent := &entities.UserTermConsent{
+			UserId:       userId,
+			TermId:       req.TermId,
+			ConsentDate:  time.Now(),
+			IsActive:     true,
+			IPAddress:    &ipAddress,
+			UserAgent:    &userAgent,
+			ItemConsents: []entities.UserItemConsent{},
+		}
+
+		for _, itemConsent := range req.ItemConsents {
+			consent.ItemConsents = append(consent.ItemConsents, entities.UserItemConsent{
+				ItemId:      itemConsent.ItemId,
+				Accepted:    itemConsent.Accepted,
+				ConsentDate: time.Now(),
+			})
+		}
+
+		// 6. Salvar no banco
+		err = cfg.SqlServer.RegisterUserConsent(c.Request.Context(), consent)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+				BaseResponse: dto.BaseResponse{Success: false, Timestamp: time.Now()},
+				Error:        "Internal Server Error",
+				Code:         http.StatusInternalServerError,
+				Message:      "Falha ao registrar consentimento",
+				Details:      err.Error(),
+			})
+			return
+		}
+
+		c.JSON(http.StatusOK, dto.SuccessResponse{
+			BaseResponse: dto.BaseResponse{Success: true, Timestamp: time.Now()},
+			Message:      "Consentimento registrado com sucesso",
 		})
 	}
 }
